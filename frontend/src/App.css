@@ -20,4 +20,4 @@
   transition: background 0.12s ease, color 0.12s ease;
 }
 .nav-link:hover { background: #F1F5F9; color: #0F172A; }
-.nav-link.active { background: #DCEEFB; color: #0B5C8C; }
+.nav-link.active { background: #DCEEFB; color: #0A1929; }
