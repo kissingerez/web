@@ -52,18 +52,18 @@ const Watch = () => {
     }
   };
 
-  if (loading) return <p className="text-[#8C8C8C]">Loading…</p>;
+  if (loading) return <p className="text-[#64748B]">Loading…</p>;
 
   if (paywall) {
     return (
       <div data-testid="watch-paywall" className="max-w-2xl mx-auto py-12 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-[#4D1317] text-[#FFD9DB] mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-[#DCEEFB] text-[#0B5C8C] mb-4">
           <Lock size={28} />
         </div>
-        <h1 className="font-display text-4xl font-black tracking-tight text-white uppercase">Members only</h1>
-        <p className="mt-2 text-[#B3B3B3]">WeClips is an ad-free, member-supported video network. Become a Member for $0.99/month to watch any clip.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">Members only</h1>
+        <p className="mt-2 text-[#475569]">WeClips is an ad-free, member-supported video network. Become a Member for $0.99/month to watch any clip.</p>
         <Link to="/billing">
-          <Button data-testid="watch-paywall-subscribe-btn" className="mt-6 brand-cta px-6 h-11 rounded-md font-bold uppercase">
+          <Button data-testid="watch-paywall-subscribe-btn" className="mt-6 brand-cta px-6 h-11 rounded-md font-bold">
             <Crown size={16} className="mr-2"/> Become a Member · $0.99
           </Button>
         </Link>
@@ -71,14 +71,14 @@ const Watch = () => {
     );
   }
 
-  if (error) return <p className="text-[#E63946]">{error}</p>;
+  if (error) return <p className="text-[#DC2626]">{error}</p>;
   if (!video) return null;
 
   const isOwner = user?.id === video.owner_id;
 
   return (
     <div data-testid="watch-page" className="max-w-5xl mx-auto">
-      <div className="relative rounded-md overflow-hidden bg-black aspect-video">
+      <div className="relative rounded-lg overflow-hidden bg-black aspect-video">
         <video
           src={video.url}
           controls
@@ -91,8 +91,8 @@ const Watch = () => {
 
       <div className="mt-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl sm:text-4xl font-black tracking-tight text-white" data-testid="watch-title">{video.title}</h1>
-          <p className="mt-2 text-sm text-[#8C8C8C] flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A]" data-testid="watch-title">{video.title}</h1>
+          <p className="mt-2 text-sm text-[#64748B] flex items-center gap-3 flex-wrap">
             <span className="inline-flex items-center gap-1"><Eye size={14}/> {video.views} views</span>
             <span>·</span>
             <span>{timeAgo(video.created_at)}</span>
@@ -101,19 +101,19 @@ const Watch = () => {
 
         <div className="flex items-center gap-3">
           <Link to={`/u/${video.owner_username}`} className="flex items-center gap-3 group" data-testid="watch-creator-link">
-            <div className="w-11 h-11 rounded-full bg-[#262626] border border-[#333] text-white flex items-center justify-center font-semibold">
+            <div className="w-11 h-11 rounded-full bg-[#DCEEFB] border border-[#BFE0F5] text-[#0B5C8C] flex items-center justify-center font-semibold">
               {video.owner_username?.[0]?.toUpperCase()}
             </div>
             <div>
-              <p className="font-semibold text-white group-hover:text-[#E63946]">@{video.owner_username}</p>
-              <p className="text-xs text-[#8C8C8C]">Creator</p>
+              <p className="font-semibold text-[#0F172A] group-hover:text-[#2B8FCA]">@{video.owner_username}</p>
+              <p className="text-xs text-[#64748B]">Creator</p>
             </div>
           </Link>
           {isOwner && (
             <button
               onClick={handleDelete}
               data-testid="watch-delete-btn"
-              className="p-2 rounded-md text-[#8C8C8C] hover:bg-[#4D1317] hover:text-[#FFD9DB]"
+              className="p-2 rounded-md text-[#64748B] hover:bg-[#FEE2E2] hover:text-[#DC2626]"
               aria-label="Delete clip"
             >
               <Trash2 size={18} />
@@ -123,7 +123,7 @@ const Watch = () => {
       </div>
 
       {video.description && (
-        <div className="mt-6 bg-[#1A1A1A] border border-[#262626] rounded-md p-5 text-[#B3B3B3] whitespace-pre-wrap" data-testid="watch-description">
+        <div className="mt-6 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-5 text-[#475569] whitespace-pre-wrap" data-testid="watch-description">
           {video.description}
         </div>
       )}

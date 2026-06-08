@@ -24,19 +24,19 @@ const Following = () => {
   return (
     <div data-testid="following-page" className="space-y-10">
       <header>
-        <h1 className="font-display text-5xl tracking-tight font-black text-white uppercase">Following</h1>
-        <p className="mt-2 text-[#B3B3B3]">Latest clips from creators you follow.</p>
+        <h1 className="text-4xl tracking-tight font-extrabold text-[#0F172A]">Following</h1>
+        <p className="mt-2 text-[#475569]">Latest clips from creators you follow.</p>
       </header>
 
-      {loading && <p className="text-[#8C8C8C]">Loading…</p>}
-      {!loading && error && <p className="text-[#E63946]">{error}</p>}
+      {loading && <p className="text-[#64748B]">Loading…</p>}
+      {!loading && error && <p className="text-[#DC2626]">{error}</p>}
 
       {!loading && !error && videos.length === 0 && (
-        <div className="text-center py-16 border border-dashed border-[#333] rounded-md" data-testid="empty-following">
-          <Users className="mx-auto text-[#4D4D4D]" size={48} />
-          <p className="mt-4 text-white font-semibold">No clips in your feed yet</p>
-          <p className="text-sm text-[#8C8C8C] mt-1">
-            Follow creators on the <Link to="/" className="text-[#E63946] underline">Discover page</Link> to see their uploads here.
+        <div className="text-center py-16 border border-dashed border-[#CBD5E1] rounded-lg" data-testid="empty-following">
+          <Users className="mx-auto text-[#CBD5E1]" size={48} />
+          <p className="mt-4 text-[#0F172A] font-semibold">No clips in your feed yet</p>
+          <p className="text-sm text-[#64748B] mt-1">
+            Follow creators on the <Link to="/" className="text-[#2B8FCA] underline">Discover page</Link> to see their uploads here.
           </p>
         </div>
       )}

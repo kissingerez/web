@@ -66,13 +66,13 @@ const Upload = () => {
     }
   };
 
-  if (authLoading) return <p className="text-[#8C8C8C]">Loading…</p>;
+  if (authLoading) return <p className="text-[#64748B]">Loading…</p>;
 
   if (!user) {
     return (
       <div data-testid="upload-page-anon" className="max-w-xl mx-auto py-12 text-center">
-        <h1 className="font-display text-4xl font-black tracking-tight text-white uppercase">Sign in to upload</h1>
-        <p className="mt-2 text-[#B3B3B3]">Create an account to start sharing clips on WeClips.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">Sign in to upload</h1>
+        <p className="mt-2 text-[#475569]">Create an account to start sharing clips on WeClips.</p>
         <Link to="/auth"><Button className="mt-6 brand-cta">Log in / Sign up</Button></Link>
       </div>
     );
@@ -81,13 +81,13 @@ const Upload = () => {
   if (!user.is_premium) {
     return (
       <div data-testid="upload-page-paywall" className="max-w-xl mx-auto py-12 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-[#4D1317] text-[#FFD9DB] mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-[#DCEEFB] text-[#0B5C8C] mb-4">
           <Lock size={28} />
         </div>
-        <h1 className="font-display text-4xl font-black tracking-tight text-white uppercase">Become a Member to upload</h1>
-        <p className="mt-2 text-[#B3B3B3]">WeClips uploads are part of the $0.99/month membership.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">Become a Member to upload</h1>
+        <p className="mt-2 text-[#475569]">WeClips uploads are part of the $0.99/month membership.</p>
         <Link to="/billing">
-          <Button data-testid="paywall-subscribe-btn" className="mt-6 brand-cta px-6 h-11 rounded-md font-bold uppercase">
+          <Button data-testid="paywall-subscribe-btn" className="mt-6 brand-cta px-6 h-11 rounded-md font-bold">
             <Crown size={16} className="mr-2"/> Become a Member · $0.99
           </Button>
         </Link>
@@ -97,56 +97,56 @@ const Upload = () => {
 
   return (
     <div data-testid="upload-page" className="max-w-2xl mx-auto">
-      <h1 className="font-display text-5xl font-black tracking-tight text-white uppercase">Upload a clip</h1>
-      <p className="mt-2 text-[#B3B3B3]">Up to {MAX_MB} MB · mp4, webm, mov, ogg, mkv</p>
+      <h1 className="text-4xl font-extrabold tracking-tight text-[#0F172A]">Upload a clip</h1>
+      <p className="mt-2 text-[#475569]">Up to {MAX_MB} MB · mp4, webm, mov, ogg, mkv</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <div>
-          <Label htmlFor="title" className="text-[#B3B3B3] text-xs uppercase tracking-wider">Title</Label>
+          <Label htmlFor="title" className="text-[#475569] text-xs uppercase tracking-wider">Title</Label>
           <Input id="title" data-testid="upload-title-input" required maxLength={200}
-                 value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1.5 h-11 bg-[#1A1A1A] border-[#333] text-white" />
+                 value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1.5 h-11 bg-white border-[#E2E8F0] text-[#0F172A]" />
         </div>
 
         <div>
-          <Label htmlFor="description" className="text-[#B3B3B3] text-xs uppercase tracking-wider">Description (optional)</Label>
+          <Label htmlFor="description" className="text-[#475569] text-xs uppercase tracking-wider">Description (optional)</Label>
           <Textarea id="description" data-testid="upload-description-input" rows={4} maxLength={2000}
-                    value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1.5 bg-[#1A1A1A] border-[#333] text-white" />
+                    value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1.5 bg-white border-[#E2E8F0] text-[#0F172A]" />
         </div>
 
         <div>
-          <Label htmlFor="file" className="text-[#B3B3B3] text-xs uppercase tracking-wider">Video file</Label>
-          <label className="mt-1.5 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#333] rounded-md py-10 px-6 cursor-pointer hover:bg-[#1A1A1A] transition bg-[#0D0D0D]">
-            <Film size={32} className="text-[#666]" />
-            <span className="text-sm text-[#B3B3B3]">
-              {file ? <span className="font-medium text-white">{file.name}</span> : "Click to choose a video"}
+          <Label htmlFor="file" className="text-[#475569] text-xs uppercase tracking-wider">Video file</Label>
+          <label className="mt-1.5 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#CBD5E1] rounded-lg py-10 px-6 cursor-pointer hover:bg-[#F8FAFC] transition bg-white">
+            <Film size={32} className="text-[#94A3B8]" />
+            <span className="text-sm text-[#475569]">
+              {file ? <span className="font-medium text-[#0F172A]">{file.name}</span> : "Click to choose a video"}
             </span>
-            <span className="text-xs text-[#666]">{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `Max ${MAX_MB} MB`}</span>
+            <span className="text-xs text-[#94A3B8]">{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `Max ${MAX_MB} MB`}</span>
             <input id="file" type="file" data-testid="upload-file-input" accept="video/*" className="hidden" onChange={handleFile} />
           </label>
         </div>
 
-        <label className="flex items-start gap-3 text-sm text-[#B3B3B3] cursor-pointer">
+        <label className="flex items-start gap-3 text-sm text-[#475569] cursor-pointer">
           <input
             type="checkbox" data-testid="upload-no-ai-checkbox"
             checked={noAi} onChange={(e) => setNoAi(e.target.checked)}
-            className="mt-0.5 w-4 h-4 accent-[#E63946]"
+            className="mt-0.5 w-4 h-4 accent-[#89CFF0]"
           />
-          <span>I confirm this clip is <span className="font-semibold text-white">not AI-generated</span> content.</span>
+          <span>I confirm this clip is <span className="font-semibold text-[#0F172A]">not AI-generated</span> content.</span>
         </label>
 
-        {error && <p className="text-sm text-[#E63946]" data-testid="upload-error">{error}</p>}
+        {error && <p className="text-sm text-[#DC2626]" data-testid="upload-error">{error}</p>}
 
         {busy && (
           <div className="space-y-2" data-testid="upload-progress">
-            <div className="w-full h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden">
-              <div className="h-full bg-[#E63946] transition-all" style={{ width: `${progress}%` }} />
+            <div className="w-full h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
+              <div className="h-full bg-[#89CFF0] transition-all" style={{ width: `${progress}%` }} />
             </div>
-            <p className="text-xs text-[#8C8C8C]">Uploading… {progress}%</p>
+            <p className="text-xs text-[#64748B]">Uploading… {progress}%</p>
           </div>
         )}
 
         <Button type="submit" data-testid="upload-submit-btn" disabled={busy}
-                className="h-11 brand-cta rounded-md font-bold uppercase tracking-wide px-6">
+                className="h-11 brand-cta rounded-md font-bold px-6">
           <UploadIcon size={16} className="mr-2" /> {busy ? "Uploading…" : "Publish clip"}
         </Button>
       </form>

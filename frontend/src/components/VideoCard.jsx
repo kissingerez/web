@@ -39,7 +39,7 @@ const VideoCard = ({ video, locked = false }) => {
       data-testid={`video-card-${video.id}`}
       className="group block fade-up"
     >
-      <div className="relative aspect-video w-full overflow-hidden rounded-md thumb-lift bg-[#1A1A1A]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg thumb-lift bg-[#F1F5F9]">
         <img
           src={thumb}
           alt={video.title}
@@ -54,23 +54,23 @@ const VideoCard = ({ video, locked = false }) => {
           </span>
         )}
         {locked && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#E63946] text-white text-xs font-semibold">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-md">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md brand-cta text-xs">
               <Lock size={12} /> Members only
             </div>
           </div>
         )}
       </div>
       <div className="mt-3 flex gap-3">
-        <div className="w-9 h-9 rounded-full bg-[#262626] text-white flex items-center justify-center text-sm font-semibold shrink-0 border border-[#333]">
+        <div className="w-9 h-9 rounded-full bg-[#DCEEFB] text-[#0B5C8C] flex items-center justify-center text-sm font-semibold shrink-0 border border-[#BFE0F5]">
           {video.owner_username?.[0]?.toUpperCase() || "?"}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-display font-semibold text-base leading-snug line-clamp-2 text-white group-hover:text-[#E63946] transition-colors">
+          <h3 className="font-semibold text-[0.97rem] leading-snug line-clamp-2 text-[#0F172A] group-hover:text-[#2B8FCA] transition-colors">
             {video.title}
           </h3>
-          <p className="text-xs text-[#8C8C8C] mt-1">@{video.owner_username}</p>
-          <p className="text-[11px] text-[#666] mt-0.5 flex items-center gap-1.5">
+          <p className="text-xs text-[#64748B] mt-1">@{video.owner_username}</p>
+          <p className="text-[11px] text-[#94A3B8] mt-0.5 flex items-center gap-1.5">
             <Eye size={11}/> {formatViews(video.views)} · {timeAgo(video.created_at)}
           </p>
         </div>

@@ -1,11 +1,10 @@
 /* WeClips App-level styles */
-.App { min-height: 100vh; background: #0D0D0D; color: #F2F2F2; }
+.App { min-height: 100vh; background: #FFFFFF; color: #0F172A; }
 
 .brand-mark {
-  font-family: "Barlow Condensed", sans-serif;
-  font-weight: 800;
+  font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", "Comic Neue", cursive;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  text-transform: lowercase;
 }
 
 .nav-link {
@@ -14,11 +13,11 @@
   gap: 0.75rem;
   padding: 0.6rem 0.85rem;
   border-radius: 0.5rem;
-  color: #B3B3B3;
+  color: #475569;
   font-family: "Satoshi", sans-serif;
   font-weight: 500;
   font-size: 0.92rem;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.nav-link:hover { background: #1A1A1A; color: #F2F2F2; }
-.nav-link.active { background: #262626; color: #F2F2F2; }
+.nav-link:hover { background: #F1F5F9; color: #0F172A; }
+.nav-link.active { background: #DCEEFB; color: #0B5C8C; }

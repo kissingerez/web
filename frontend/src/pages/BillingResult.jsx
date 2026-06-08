@@ -46,28 +46,28 @@ export const BillingSuccess = () => {
     <div data-testid="billing-success-page" className="max-w-xl mx-auto py-12 text-center">
       {status === "polling" && (
         <>
-          <Loader2 className="mx-auto animate-spin text-[#8C8C8C]" size={40}/>
-          <h1 className="font-display mt-5 text-3xl font-black uppercase text-white">Confirming payment…</h1>
-          <p className="mt-2 text-[#8C8C8C] text-sm">This usually takes a few seconds.</p>
+          <Loader2 className="mx-auto animate-spin text-[#64748B]" size={40}/>
+          <h1 className="mt-5 text-3xl font-extrabold text-[#0F172A]">Confirming payment…</h1>
+          <p className="mt-2 text-[#64748B] text-sm">This usually takes a few seconds.</p>
         </>
       )}
       {status === "paid" && (
         <>
-          <CheckCircle2 className="mx-auto text-[#2A9D8F]" size={56}/>
-          <h1 className="font-display mt-5 text-4xl font-black uppercase tracking-tight text-white">You're in.</h1>
-          <p className="mt-2 text-[#B3B3B3]">Membership unlocked. Welcome to ad-free WeClips.</p>
+          <CheckCircle2 className="mx-auto text-[#0E9F6E]" size={56}/>
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-[#0F172A]">You're in.</h1>
+          <p className="mt-2 text-[#475569]">Membership unlocked. Welcome to ad-free WeClips.</p>
           {details?.premium_until && (
-            <p className="mt-1 text-xs text-[#666]">Active until {new Date(details.premium_until).toLocaleDateString()}</p>
+            <p className="mt-1 text-xs text-[#94A3B8]">Active until {new Date(details.premium_until).toLocaleDateString()}</p>
           )}
-          <Link to="/"><Button className="mt-6 brand-cta h-11 px-6 rounded-md font-bold uppercase" data-testid="success-go-discover">Go to Discover</Button></Link>
+          <Link to="/"><Button className="mt-6 brand-cta h-11 px-6 rounded-md font-bold" data-testid="success-go-discover">Go to Discover</Button></Link>
         </>
       )}
       {(status === "expired" || status === "error") && (
         <>
-          <XCircle className="mx-auto text-[#E63946]" size={56}/>
-          <h1 className="font-display mt-5 text-3xl font-black uppercase text-white">Payment not completed</h1>
-          <p className="mt-2 text-[#B3B3B3]">Your session expired or wasn't completed.</p>
-          <Link to="/billing"><Button className="mt-6 brand-cta h-11 px-6 rounded-md font-bold uppercase">Try again</Button></Link>
+          <XCircle className="mx-auto text-[#DC2626]" size={56}/>
+          <h1 className="mt-5 text-3xl font-extrabold text-[#0F172A]">Payment not completed</h1>
+          <p className="mt-2 text-[#475569]">Your session expired or wasn't completed.</p>
+          <Link to="/billing"><Button className="mt-6 brand-cta h-11 px-6 rounded-md font-bold">Try again</Button></Link>
         </>
       )}
     </div>
@@ -78,10 +78,10 @@ export const BillingCancel = () => {
   const navigate = useNavigate();
   return (
     <div data-testid="billing-cancel-page" className="max-w-xl mx-auto py-12 text-center">
-      <XCircle className="mx-auto text-[#4D4D4D]" size={56}/>
-      <h1 className="font-display mt-5 text-3xl font-black uppercase text-white">Subscription canceled</h1>
-      <p className="mt-2 text-[#B3B3B3]">No charge was made. You can become a member anytime.</p>
-      <Button onClick={() => navigate("/billing")} className="mt-6 brand-cta h-11 px-6 rounded-md font-bold uppercase">Back to billing</Button>
+      <XCircle className="mx-auto text-[#CBD5E1]" size={56}/>
+      <h1 className="mt-5 text-3xl font-extrabold text-[#0F172A]">Subscription canceled</h1>
+      <p className="mt-2 text-[#475569]">No charge was made. You can become a member anytime.</p>
+      <Button onClick={() => navigate("/billing")} className="mt-6 brand-cta h-11 px-6 rounded-md font-bold">Back to billing</Button>
     </div>
   );
 };

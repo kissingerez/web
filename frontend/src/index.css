@@ -1,5 +1,5 @@
-/* WeClips — Dark-First Utility theme (matches repo design_guidelines.json) */
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&display=swap");
+/* WeClips — Light theme, baby blue brand, Comic Sans wordmark (matches /tmp/weclips_ref/frontend/src/theme.ts) */
+@import url("https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap");
 @import url("https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap");
 
 @tailwind base;
@@ -7,66 +7,73 @@
 @tailwind utilities;
 
 :root {
-  /* Repo design tokens */
-  --surface: #0D0D0D;
-  --on-surface: #F2F2F2;
-  --surface-2: #1A1A1A;
-  --on-surface-2: #B3B3B3;
-  --surface-3: #262626;
-  --on-surface-3: #8C8C8C;
-  --surface-inverse: #F2F2F2;
-  --on-surface-inverse: #0D0D0D;
+  /* From repo theme.ts */
+  --surface: #FFFFFF;
+  --on-surface: #0F172A;
+  --surface-2: #F1F5F9;
+  --on-surface-2: #475569;
+  --surface-3: #E2E8F0;
+  --on-surface-3: #64748B;
 
-  --brand: #E63946;
-  --brand-secondary: #2A2A2A;
-  --brand-tertiary: #4D1317;
+  --brand: #89CFF0;          /* baby blue */
+  --brand-strong: #5BB7E8;
+  --brand-deep: #2B8FCA;
+  --on-brand: #0A1929;
+  --brand-tertiary: #DCEEFB;
+  --on-brand-tertiary: #0B5C8C;
 
-  --success: #2A9D8F;
-  --warning: #E9C46A;
-  --error: #E63946;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --divider: #F1F5F9;
 
-  --border: #333333;
-  --border-strong: #4D4D4D;
-  --divider: #1A1A1A;
+  --success: #0E9F6E;
+  --warning: #D97706;
+  --error: #DC2626;
+  --error-bg: #FEE2E2;
 }
 
 html, body, #root {
   background: var(--surface);
   color: var(--on-surface);
-  font-family: "Satoshi", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Satoshi", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
 }
 
-h1, h2, h3, h4, h5, .font-display, .brand-mark {
-  font-family: "Barlow Condensed", "Satoshi", system-ui, sans-serif;
-  letter-spacing: 0;
+/* WeClips wordmark — Comic Sans family (from repo brandFont) */
+.brand-mark {
+  font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", "Comic Neue", cursive;
   font-weight: 700;
-  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: "Satoshi", system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 5%;          /* #0D0D0D */
-    --foreground: 0 0% 95%;         /* #F2F2F2 */
-    --card: 0 0% 10%;               /* #1A1A1A */
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 355 78% 56%;         /* #E63946 */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 15%;          /* #262626 */
-    --secondary-foreground: 0 0% 95%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 70%;
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 95%;
-    --destructive: 355 78% 56%;
+    --background: 0 0% 100%;          /* white */
+    --foreground: 222 47% 11%;        /* #0F172A */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 200 79% 74%;            /* baby blue #89CFF0 */
+    --primary-foreground: 213 70% 9%;  /* #0A1929 */
+    --secondary: 210 40% 96%;          /* #F1F5F9 */
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;   /* #475569 */
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 73% 50%;          /* #DC2626 */
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 20%;             /* #333333 */
-    --input: 0 0% 15%;
-    --ring: 355 78% 56%;
+    --border: 214 32% 91%;             /* #E2E8F0 */
+    --input: 214 32% 91%;
+    --ring: 200 79% 60%;
     --radius: 0.5rem;
   }
 }
@@ -76,19 +83,17 @@ h1, h2, h3, h4, h5, .font-display, .brand-mark {
   body { @apply bg-background text-foreground; }
 }
 
-/* Custom scrollbar — dark */
+/* Custom scrollbar — light */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: #4d4d4d; }
+::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
 
-::selection { background: #E63946; color: #fff; }
+::selection { background: #89CFF0; color: #0A1929; }
 
 /* Video thumbnail hover */
-.thumb-lift {
-  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
-}
-.thumb-lift:hover { transform: scale(1.005); }
+.thumb-lift { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+.thumb-lift:hover { transform: translateY(-2px); }
 .thumb-lift:hover .thumb-overlay { opacity: 1; }
 
 /* fade in */
@@ -98,25 +103,24 @@ h1, h2, h3, h4, h5, .font-display, .brand-mark {
 }
 .fade-up { animation: fadeUp 0.4s ease-out both; }
 
-/* Brand button shimmer */
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.0); }
-  50% { box-shadow: 0 0 0 6px rgba(230, 57, 70, 0.18); }
-}
+/* Brand button — baby blue with dark text */
 .brand-cta {
-  background: #E63946;
-  color: #fff;
+  background: #89CFF0;
+  color: #0A1929;
   font-weight: 700;
+  border: 1px solid #5BB7E8;
 }
-.brand-cta:hover { background: #c92a37; }
-.brand-cta:focus-visible { animation: pulseGlow 1.4s ease-in-out infinite; }
+.brand-cta:hover { background: #5BB7E8; color: #0A1929; }
+.brand-cta:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Dark gradient scrim for content over images */
+/* Soft glow for brand chips */
+.brand-chip {
+  background: #DCEEFB;
+  color: #0B5C8C;
+  border: 1px solid #BFE0F5;
+}
+
+/* Dark scrim helper (for over-image text) */
 .dark-scrim {
-  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 60%);
-}
-
-/* Inputs — dark utility */
-input, textarea, select {
-  color-scheme: dark;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 60%);
 }
