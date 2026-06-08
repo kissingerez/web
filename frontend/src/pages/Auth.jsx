@@ -68,7 +68,6 @@ const Auth = () => {
                 id="email" type="email" data-testid="auth-email-input"
                 required value={email} onChange={(e) => setEmail(e.target.value)}
                 className="mt-1.5 h-11 bg-white border-[#E2E8F0] text-[#0F172A]"
-                placeholder="you@email.com"
               />
             </div>
             <div>
@@ -77,7 +76,6 @@ const Auth = () => {
                 id="password" type="password" data-testid="auth-password-input"
                 required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
                 className="mt-1.5 h-11 bg-white border-[#E2E8F0] text-[#0F172A]"
-                placeholder="••••••••"
               />
             </div>
 
