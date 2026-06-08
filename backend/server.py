@@ -59,7 +59,7 @@ SUBSCRIPTION_CURRENCY = os.environ.get('SUBSCRIPTION_CURRENCY', 'usd')
 PREMIUM_DURATION_DAYS = 30
 
 # --- Constants ---
-MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024
+MAX_VIDEO_SIZE_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
 ALLOWED_VIDEO_CONTENT_TYPES = {"video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-matroska"}
 
 # ============================================================

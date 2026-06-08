@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Lock } from "lucide-react";
+import { Lock, Eye } from "lucide-react";
 
-const PLACEHOLDER_THUMB = "https://images.unsplash.com/photo-1759034577145-1bce7714f46e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHx2aWRlbyUyMHRodW1ibmFpbCUyMGxhbmRzY2FwZXxlbnwwfHx8fDE3ODA5MjQ3Njd8MA&ixlib=rb-4.1.0&q=85";
+const PLACEHOLDER_THUMB = "https://images.unsplash.com/photo-1598512946582-8aa2bca6abc0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwzfHxjaW5lbWF0aWMlMjBsYW5kc2NhcGUlMjB2aWRlbyUyMHRodW1ibmFpbHxlbnwwfHx8fDE3ODA1MjE4NDl8MA&ixlib=rb-4.1.0&q=85";
 
 function formatDuration(sec) {
   if (!sec || sec <= 0) return null;
@@ -23,10 +23,10 @@ function timeAgo(iso) {
   const d = new Date(iso);
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  return `${Math.floor(diff / 2592000)}mo ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  if (diff < 2592000) return `${Math.floor(diff / 86400)}d`;
+  return `${Math.floor(diff / 2592000)}mo`;
 }
 
 const VideoCard = ({ video, locked = false }) => {
@@ -39,7 +39,7 @@ const VideoCard = ({ video, locked = false }) => {
       data-testid={`video-card-${video.id}`}
       className="group block fade-up"
     >
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl thumb-lift bg-slate-100">
+      <div className="relative aspect-video w-full overflow-hidden rounded-md thumb-lift bg-[#1A1A1A]">
         <img
           src={thumb}
           alt={video.title}
@@ -47,30 +47,31 @@ const VideoCard = ({ video, locked = false }) => {
           loading="lazy"
           onError={(e) => { e.target.src = PLACEHOLDER_THUMB; }}
         />
+        <div className="thumb-overlay absolute inset-0 opacity-0 transition-opacity duration-200 dark-scrim" />
         {duration && (
-          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium text-white bg-black/75">
+          <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[11px] font-semibold text-white bg-black/80 tabular-nums">
             {duration}
           </span>
         )}
         {locked && (
-          <div className="absolute inset-0 paywall-glass flex items-center justify-center">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-amber-700 text-xs font-semibold">
-              <Lock size={12} /> Premium
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#E63946] text-white text-xs font-semibold">
+              <Lock size={12} /> Members only
             </div>
           </div>
         )}
       </div>
       <div className="mt-3 flex gap-3">
-        <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-semibold shrink-0">
+        <div className="w-9 h-9 rounded-full bg-[#262626] text-white flex items-center justify-center text-sm font-semibold shrink-0 border border-[#333]">
           {video.owner_username?.[0]?.toUpperCase() || "?"}
         </div>
-        <div className="min-w-0">
-          <h3 className="font-semibold text-[0.97rem] leading-snug line-clamp-2 text-slate-900 group-hover:text-[#ff3b30]">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display font-semibold text-base leading-snug line-clamp-2 text-white group-hover:text-[#E63946] transition-colors">
             {video.title}
           </h3>
-          <p className="text-sm text-slate-500 mt-1">@{video.owner_username}</p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {formatViews(video.views)} · {timeAgo(video.created_at)}
+          <p className="text-xs text-[#8C8C8C] mt-1">@{video.owner_username}</p>
+          <p className="text-[11px] text-[#666] mt-0.5 flex items-center gap-1.5">
+            <Eye size={11}/> {formatViews(video.views)} · {timeAgo(video.created_at)}
           </p>
         </div>
       </div>

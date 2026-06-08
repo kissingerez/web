@@ -1,56 +1,73 @@
-/* Slate Video — light minimal video platform */
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap");
+/* WeClips — Dark-First Utility theme (matches repo design_guidelines.json) */
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg: #ffffff;
-  --surface: #f8f9fa;
-  --text: #0a0a0a;
-  --text-2: #475569;
-  --border: #e2e8f0;
-  --cta: #ff3b30;
-  --cta-hover: #d63028;
-  --gold: #f59e0b;
+  /* Repo design tokens */
+  --surface: #0D0D0D;
+  --on-surface: #F2F2F2;
+  --surface-2: #1A1A1A;
+  --on-surface-2: #B3B3B3;
+  --surface-3: #262626;
+  --on-surface-3: #8C8C8C;
+  --surface-inverse: #F2F2F2;
+  --on-surface-inverse: #0D0D0D;
+
+  --brand: #E63946;
+  --brand-secondary: #2A2A2A;
+  --brand-tertiary: #4D1317;
+
+  --success: #2A9D8F;
+  --warning: #E9C46A;
+  --error: #E63946;
+
+  --border: #333333;
+  --border-strong: #4D4D4D;
+  --divider: #1A1A1A;
 }
 
 html, body, #root {
-  background: var(--bg);
-  color: var(--text);
-  font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: "Satoshi", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
-h1, h2, h3, h4, h5, .font-display {
-  font-family: "Space Grotesk", system-ui, sans-serif;
-  letter-spacing: -0.02em;
+h1, h2, h3, h4, h5, .font-display, .brand-mark {
+  font-family: "Barlow Condensed", "Satoshi", system-ui, sans-serif;
+  letter-spacing: 0;
+  font-weight: 700;
+  text-transform: none;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 4%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
-    --primary: 4 90% 58%;
+    --background: 0 0% 5%;          /* #0D0D0D */
+    --foreground: 0 0% 95%;         /* #F2F2F2 */
+    --card: 0 0% 10%;               /* #1A1A1A */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 355 78% 56%;         /* #E63946 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 20% 96%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84% 60%;
+    --secondary: 0 0% 15%;          /* #262626 */
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 355 78% 56%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 20% 91%;
-    --input: 214 20% 91%;
-    --ring: 0 0% 4%;
-    --radius: 0.75rem;
+    --border: 0 0% 20%;             /* #333333 */
+    --input: 0 0% 15%;
+    --ring: 355 78% 56%;
+    --radius: 0.5rem;
   }
 }
 
@@ -59,51 +76,47 @@ h1, h2, h3, h4, h5, .font-display {
   body { @apply bg-background text-foreground; }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar — dark */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #4d4d4d; }
 
-/* Video thumbnail hover lift */
+::selection { background: #E63946; color: #fff; }
+
+/* Video thumbnail hover */
 .thumb-lift {
-  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
 }
-.thumb-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.18);
-}
+.thumb-lift:hover { transform: scale(1.005); }
+.thumb-lift:hover .thumb-overlay { opacity: 1; }
 
-/* Glassmorphism paywall overlay */
-.paywall-glass {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-}
-
-/* Animated gradient accent for CTA badge */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.gold-shimmer {
-  background: linear-gradient(110deg, #f59e0b 0%, #fbbf24 30%, #f59e0b 70%);
-  background-size: 200% 100%;
-  animation: shimmer 4s linear infinite;
-}
-
-/* Selection */
-::selection { background: #ff3b30; color: #fff; }
-
-/* Reset video controls to clean look */
-video::-webkit-media-controls-panel {
-  background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, transparent 100%);
-}
-
-/* fade-in */
+/* fade in */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fadeUp 0.5s ease-out both; }
+.fade-up { animation: fadeUp 0.4s ease-out both; }
+
+/* Brand button shimmer */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.0); }
+  50% { box-shadow: 0 0 0 6px rgba(230, 57, 70, 0.18); }
+}
+.brand-cta {
+  background: #E63946;
+  color: #fff;
+  font-weight: 700;
+}
+.brand-cta:hover { background: #c92a37; }
+.brand-cta:focus-visible { animation: pulseGlow 1.4s ease-in-out infinite; }
+
+/* Dark gradient scrim for content over images */
+.dark-scrim {
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 60%);
+}
+
+/* Inputs — dark utility */
+input, textarea, select {
+  color-scheme: dark;
+}
