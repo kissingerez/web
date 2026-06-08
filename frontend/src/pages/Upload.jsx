@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Upload as UploadIcon, Lock, Crown, Film } from "lucide-react";
+import { Upload as UploadIcon, Lock, CheckCircle2 as Crown, Film } from "lucide-react";
 
 const MAX_MB = 2048;
 

@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Lock, Crown, Trash2, Eye } from "lucide-react";
+import { Lock, CheckCircle2 as Crown, Trash2, Eye } from "lucide-react";
 
 function timeAgo(iso) {
   if (!iso) return "";

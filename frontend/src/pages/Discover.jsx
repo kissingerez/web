@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/context/AuthContext";
-import { Crown, PlayCircle } from "lucide-react";
+import { Crown as _Crown, CheckCircle2, PlayCircle } from "lucide-react";
+const Crown = CheckCircle2;
 import { Link } from "react-router-dom";
 
 const Discover = () => {

@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Crown, Check, Lock } from "lucide-react";
+import { CheckCircle2 as Crown, Check, Lock } from "lucide-react";
 
 const Billing = () => {
   const { user, loading: authLoading } = useAuth();

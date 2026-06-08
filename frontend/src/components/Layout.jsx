@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Compass, Users, Upload, User as UserIcon, LogIn, LogOut, Crown } from "lucide-react";
+import { Compass, Users, Upload, User as UserIcon, LogIn, LogOut, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -17,7 +17,7 @@ const Sidebar = () => {
 
   return (
     <aside className="hidden lg:flex flex-col w-60 shrink-0 h-screen sticky top-0 border-r border-[#E2E8F0] px-5 py-7 bg-white">
-      <Link to="/" data-testid="logo-link" className="brand-mark text-3xl mb-10 text-[#0F172A] hover:text-[#2B8FCA] transition-colors">
+      <Link to="/" data-testid="logo-link" className="brand-mark text-3xl mb-10 text-[#2B8FCA] hover:text-[#0B5C8C] transition-colors">
         WeClips
       </Link>
 
@@ -37,7 +37,7 @@ const Sidebar = () => {
             onClick={() => navigate("/billing")}
             className="brand-cta rounded-md px-4 py-2.5 text-sm flex items-center justify-center gap-2"
           >
-            <Crown size={15} /> Become a Member
+            <CheckCircle2 size={15} /> Become a Member
           </button>
         )}
         {user ? (
@@ -98,7 +98,7 @@ const MobileBottomNav = () => {
 
 const MobileHeader = () => (
   <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between">
-    <Link to="/" data-testid="mobile-logo" className="brand-mark text-2xl text-[#0F172A]">
+    <Link to="/" data-testid="mobile-logo" className="brand-mark text-2xl text-[#2B8FCA]">
       WeClips
     </Link>
   </header>

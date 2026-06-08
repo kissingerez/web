@@ -37,7 +37,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-10 bg-white" data-testid="auth-page">
       <div className="w-full max-w-md">
-        <Link to="/" className="brand-mark text-4xl flex items-center justify-center gap-2 mb-8 text-[#0F172A]">
+        <Link to="/" className="brand-mark text-4xl flex items-center justify-center gap-2 mb-8 text-[#2B8FCA]">
           WeClips
         </Link>
 

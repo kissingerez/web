@@ -103,14 +103,14 @@ h1, h2, h3, h4, h5 {
 }
 .fade-up { animation: fadeUp 0.4s ease-out both; }
 
-/* Brand button — baby blue with dark text */
+/* Brand button — strong blue with white text */
 .brand-cta {
-  background: #89CFF0;
-  color: #0A1929;
+  background: #2B8FCA;
+  color: #FFFFFF;
   font-weight: 700;
-  border: 1px solid #5BB7E8;
+  border: 1px solid #2B8FCA;
 }
-.brand-cta:hover { background: #5BB7E8; color: #0A1929; }
+.brand-cta:hover { background: #1E78AC; border-color: #1E78AC; color: #FFFFFF; }
 .brand-cta:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Soft glow for brand chips */
