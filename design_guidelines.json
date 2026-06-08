@@ -1,0 +1,90 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) adapted for Minimal Video Platform",
+  "global_rules": {
+    "emotion": "Clean, focused, premium, and distraction-free. The content is king.",
+    "spacing_philosophy": "Generous spacing. Use p-6, p-8, and p-12 extensively to let video thumbnails breathe.",
+    "borders_and_shadows": "Minimal to zero borders on video thumbnails. Use proximity and negative space for grouping. Minimal player chrome."
+  },
+  "typography": {
+    "fonts": {
+      "heading": "'Space Grotesk', 'Comic Neue', sans-serif",
+      "body": "'Outfit', sans-serif",
+      "instructions": "User requested 'Cosmic Sans font (cosmic-vibe)'. Add a <link> to Google fonts for 'Space Grotesk' (for cosmic/tech vibe headings) and 'Outfit' (for clean body text)."
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl tracking-tighter font-black",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-bold",
+      "h3": "text-xl font-semibold",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm tracking-wide text-slate-500"
+    }
+  },
+  "colors": {
+    "palette": {
+      "background": "#FFFFFF",
+      "surface": "#F8F9FA",
+      "text_primary": "#0A0A0A",
+      "text_secondary": "#475569",
+      "border": "#E2E8F0",
+      "primary_cta": "#FF3B30",
+      "primary_cta_hover": "#D63028",
+      "premium_accent": "#F59E0B"
+    },
+    "rules": {
+      "gradients": "Forbidden. Use solid, high-contrast blocks.",
+      "paywall": "Highlight premium/paywall actions with 'primary_cta' (Red) or 'premium_accent' (Gold) to signify locked states.",
+      "text_contrast": "Ensure pure high contrast. Background pure white, text deep black."
+    }
+  },
+  "layout_and_components": {
+    "navigation": "Sticky left sidebar on desktop (w-64), bottom bar or hamburger on mobile. Must include Logo, Discover, Following, Subscription, Profile.",
+    "video_feed": "Grid layout. grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8. No card wrappers for videos, just the thumbnail and text underneath.",
+    "video_player": "Massive width (max-w-5xl), border-radius rounded-xl. Controls hidden when not hovering. Ad-free, clean UI.",
+    "paywall_overlay": "Backdrop blur (backdrop-blur-xl bg-white/70 border border-white/40) covering the video player or upload area for non-subscribers. Must have a clear CTA button to Subscribe for $0.99.",
+    "buttons": "Shadcn components heavily customized. Flat solid backgrounds, no soft shadows. Sharp or slightly rounded corners (rounded-lg).",
+    "forms": "Use Shadcn forms for Auth and Uploads. High contrast focus rings."
+  },
+  "animations": {
+    "hover": "-translate-y-1 transition-transform duration-200 ease-out on video thumbnails.",
+    "page_transition": "Simple opacity fade. Do not over-animate.",
+    "player": "Smooth fade-in for video controls on hover."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "category": "user_profiles",
+        "description": "Avatar portraits for users in the feed and comments",
+        "urls": [
+          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwcHJvZmlsZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4MDkyNDc2N3ww&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1506863530036-1efeddceb993?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwyfHx1c2VyJTIwcHJvZmlsZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4MDkyNDc2N3ww&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1654110455429-cf322b40a906?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwzfHx1c2VyJTIwcHJvZmlsZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4MDkyNDc2N3ww&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHw0fHx1c2VyJTIwcHJvZmlsZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4MDkyNDc2N3ww&ixlib=rb-4.1.0&q=85"
+        ]
+      },
+      {
+        "category": "video_thumbnails",
+        "description": "Placeholder thumbnails for the video feed and related videos",
+        "urls": [
+          "https://images.unsplash.com/photo-1759034577145-1bce7714f46e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHx2aWRlbyUyMHRodW1ibmFpbCUyMGxhbmRzY2FwZXxlbnwwfHx8fDE3ODA5MjQ3Njd8MA&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1652349889924-2d418495b5f4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHw0fHx2aWRlbyUyMHRodW1ibmFpbCUyMGxhbmRzY2FwZXxlbnwwfHx8fDE3ODA5MjQ3Njd8MA&ixlib=rb-4.1.0&q=85",
+          "https://images.unsplash.com/photo-1642068328810-aafbf4338119?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwyfHx2aWRlbyUyMHRodW1ibmFpbCUyMGxhbmRzY2FwZXxlbnwwfHx8fDE3ODA5MjQ3Njd8MA&ixlib=rb-4.1.0&q=85",
+          "https://images.pexels.com/photos/5748338/pexels-photo-5748338.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+        ]
+      }
+    ],
+    "icons": "lucide-react"
+  },
+  "testing": {
+    "attributes": "All interactive elements MUST include data-testid attribute in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "CRITICAL: Generate/Edit .js files only, NOT .tsx files.",
+    "Use Shadcn UI for standard components but heavily customize the look to fit the minimal light theme.",
+    "Ensure 'Stripe' paywall blocks the video player and upload page with a glassmorphic overlay for non-subscribers ($0.99/month).",
+    "Video Feed must look clean like a minimal YouTube. No borders around video cards, just thumbnail image and text underneath.",
+    "Add 'Space Grotesk' via Google Fonts for the 'Cosmic' typography vibe as requested by user.",
+    "Implement Cloudinary for native uploads. Build the Upload page explicitly.",
+    "Never use placeholders. Use the provided image URLs in the media section for seeding or dummy data."
+  ]
+}
