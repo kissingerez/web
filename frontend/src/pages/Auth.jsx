@@ -85,6 +85,13 @@ const Auth = () => {
                     className="w-full h-11 brand-cta rounded-md font-bold">
               {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
             </Button>
+
+            {mode === "login" && (
+              <Link to="/forgot" data-testid="auth-forgot-link"
+                    className="block text-center text-sm text-[#89CFF0] font-semibold hover:underline">
+                Reset password
+              </Link>
+            )}
           </form>
 
           <p className="mt-6 text-sm text-[#64748B] text-center">

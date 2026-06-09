@@ -81,6 +81,15 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=6, max_length=128)
+
+
 class UserPublic(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
@@ -246,6 +255,76 @@ async def me(user_id: str = Depends(get_current_user_id)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return UserPublic(**await _user_public(user))
+
+
+# ---- Password reset (matches mobile app contract) ----
+import secrets as _secrets
+
+
+def _frontend_origin(request: Request) -> str:
+    origin = request.headers.get("origin") or request.headers.get("referer")
+    if origin:
+        # strip path
+        from urllib.parse import urlparse
+        u = urlparse(origin)
+        return f"{u.scheme}://{u.netloc}"
+    return ""
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest, request: Request):
+    email = req.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+
+    # Always return the same response to avoid email enumeration
+    response = {"status": "ok"}
+
+    if user:
+        token = _secrets.token_urlsafe(32)
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        await db.password_reset_tokens.insert_one({
+            "token": token,
+            "user_id": user["id"],
+            "email": email,
+            "expires_at": expires_at,
+            "created_at": now_iso(),
+            "used": False,
+        })
+        # No email service configured yet → return dev_reset_url so the user can complete the flow
+        origin = _frontend_origin(request)
+        if origin:
+            response["dev_reset_url"] = f"{origin}/reset?token={token}"
+        else:
+            response["dev_reset_url"] = f"/reset?token={token}"
+
+    return response
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    rec = await db.password_reset_tokens.find_one({"token": req.token, "used": False})
+    if not rec:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    try:
+        exp = datetime.fromisoformat(rec["expires_at"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid token")
+    if exp < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token expired")
+
+    user = await db.users.find_one({"id": rec["user_id"]})
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(req.new_password)}},
+    )
+    await db.password_reset_tokens.update_one(
+        {"token": req.token},
+        {"$set": {"used": True, "used_at": now_iso()}},
+    )
+    return {"status": "ok"}
 
 
 # ============================================================
@@ -581,13 +660,18 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    await db.users.create_index("email", unique=True)
-    await db.users.create_index("username", unique=True)
-    await db.videos.create_index([("created_at", -1)])
-    await db.videos.create_index("owner_id")
-    await db.follows.create_index([("follower_id", 1), ("following_id", 1)], unique=True)
-    await db.payment_transactions.create_index("session_id", unique=True)
-    logger.info("Indexes ensured.")
+    try:
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("username", unique=True)
+        await db.videos.create_index([("created_at", -1)])
+        await db.videos.create_index("owner_id")
+        await db.follows.create_index([("follower_id", 1), ("following_id", 1)], unique=True)
+        await db.payment_transactions.create_index("session_id", unique=True)
+        await db.password_reset_tokens.create_index("token", unique=True)
+        await db.password_reset_tokens.create_index("expires_at")
+        logger.info("Indexes ensured.")
+    except Exception as e:
+        logger.warning("Skipping index creation; DB unreachable: %s", e)
 
 
 @app.on_event("shutdown")

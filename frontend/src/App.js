@@ -11,6 +11,8 @@ import Watch from "@/pages/Watch";
 import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
 import Billing from "@/pages/Billing";
+import Forgot from "@/pages/Forgot";
+import Reset from "@/pages/Reset";
 import { BillingSuccess, BillingCancel } from "@/pages/BillingResult";
 
 function App() {
@@ -19,6 +21,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/forgot" element={<Forgot />} />
+          <Route path="/reset" element={<Reset />} />
           <Route path="/billing/success" element={<Layout><BillingSuccess /></Layout>} />
           <Route path="/billing/cancel" element={<Layout><BillingCancel /></Layout>} />
           <Route path="/" element={<Layout><Discover /></Layout>} />
