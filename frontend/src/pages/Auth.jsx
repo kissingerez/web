@@ -37,17 +37,17 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-10 bg-white" data-testid="auth-page">
       <div className="w-full max-w-md">
-        <Link to="/" className="brand-mark text-4xl flex items-center justify-center gap-2 mb-8 text-[#2B8FCA]">
+        <Link to="/" className="brand-mark text-5xl flex items-center justify-center gap-2 mb-2 text-[#89CFF0]">
           WeClips
         </Link>
+        <p className="text-center text-[#475569] text-sm mb-8" data-testid="auth-tagline">
+          Ad-free Christian-friendly video, $1/month. No AI. No chaos.
+        </p>
 
         <div className="border border-[#E2E8F0] bg-white rounded-lg p-8 fade-up">
-          <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">
-            {mode === "login" ? "Welcome back" : "Create account"}
+          <h1 className="text-2xl font-extrabold tracking-tight text-[#0F172A]">
+            {mode === "login" ? "Sign in" : "Create an account"}
           </h1>
-          <p className="mt-2 text-[#64748B] text-sm">
-            {mode === "login" ? "Sign in to your WeClips account." : "Free to join — become a member to watch & upload."}
-          </p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4" data-testid="auth-form">
             {mode === "signup" && (
