@@ -22,15 +22,7 @@ const Discover = () => {
   return (
     <div data-testid="discover-page" className="space-y-10">
       <section className="fade-up">
-        <div className="flex items-end justify-between gap-6 flex-wrap">
-          <div>
-            <h1 className="text-4xl sm:text-5xl tracking-tight font-extrabold text-[#0F172A]">
-              Discover clips.
-            </h1>
-            <p className="mt-3 text-[#475569] text-base max-w-xl">
-              An ad-free, human-made video network. Watch, follow, and upload — all on WeClips.
-            </p>
-          </div>
+        <div className="flex items-end justify-end gap-6 flex-wrap">
           {!user?.is_premium && (
             <Link
               to="/billing"
