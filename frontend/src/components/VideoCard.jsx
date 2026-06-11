@@ -1,8 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Lock, Eye } from "lucide-react";
-
-const PLACEHOLDER_THUMB = "https://images.unsplash.com/photo-1598512946582-8aa2bca6abc0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwzfHxjaW5lbWF0aWMlMjBsYW5kc2NhcGUlMjB2aWRlbyUyMHRodW1ibmFpbHxlbnwwfHx8fDE3ODA1MjE4NDl8MA&ixlib=rb-4.1.0&q=85";
+import { Lock, Eye, ImageOff } from "lucide-react";
 
 function formatDuration(sec) {
   if (!sec || sec <= 0) return null;
@@ -30,7 +28,8 @@ function timeAgo(iso) {
 }
 
 const VideoCard = ({ video, locked = false }) => {
-  const thumb = video.thumbnail_url || PLACEHOLDER_THUMB;
+  const [thumbBroken, setThumbBroken] = useState(false);
+  const showThumb = video.thumbnail_url && !thumbBroken;
   const duration = formatDuration(video.duration);
   const displayName = video.owner_display_name || video.owner_username || "Creator";
   const handle = video.owner_username || "";
@@ -42,13 +41,23 @@ const VideoCard = ({ video, locked = false }) => {
       className="group block fade-up"
     >
       <div className="relative aspect-video w-full overflow-hidden rounded-lg thumb-lift bg-[#F1F5F9]">
-        <img
-          src={thumb}
-          alt={video.title}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          onError={(e) => { e.target.src = PLACEHOLDER_THUMB; }}
-        />
+        {showThumb ? (
+          <img
+            src={video.thumbnail_url}
+            alt={video.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => setThumbBroken(true)}
+          />
+        ) : (
+          <div
+            className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-[#E2E8F0] text-[#94A3B8]"
+            data-testid={`no-thumbnail-${video.id}`}
+          >
+            <ImageOff size={28} strokeWidth={1.5} />
+            <span className="text-[11px] font-medium">No thumbnail</span>
+          </div>
+        )}
         <div className="thumb-overlay absolute inset-0 opacity-0 transition-opacity duration-200 dark-scrim" />
         {duration && (
           <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[11px] font-semibold text-white bg-black/80 tabular-nums">

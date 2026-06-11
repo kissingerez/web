@@ -51,6 +51,9 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 ### 2026-06-11 — Proxy hardening
 - `_proxy_json` now retries GETs once on transient upstream/Cloudflare errors (5xx/52x + transport failures) and returns a friendly "WeClips is having a moment…" message instead of leaking raw Cloudflare/HTML error pages to users. JSON error details (e.g., "Not authenticated") still pass through unchanged.
 
+### 2026-06-11 — No-thumbnail placeholder
+- VideoCard: removed the generic Unsplash placeholder image; videos without a thumbnail (or with broken thumbnail URLs) now show a grey box with an ImageOff icon + "No thumbnail" label (testid `no-thumbnail-{id}`).
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)
