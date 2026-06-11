@@ -1,75 +1,136 @@
-"""FastAPI server for the ad-free video web app (weclips-style).
+"""FastAPI proxy server for the WeClips web app.
 
-Features: email/password JWT auth, Cloudinary video uploads, follow system,
-Stripe $0.99/month-equivalent paywall (one-time $0.99 grants 30 days premium
-via Emergent Stripe proxy).
+Forwards most requests to the mobile/canonical backend at MOBILE_BACKEND_URL,
+translating shapes so the existing web React frontend continues to work.
+
+Stripe checkout stays local; on success we call the mobile backend's
+/api/subscription/dev-activate to grant subscription in the mobile DB.
 """
 import os
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional, Any
 
+import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-
-import cloudinary
-import cloudinary.uploader
+from pydantic import BaseModel, EmailStr, Field
 
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout,
     CheckoutSessionRequest,
 )
 
-from auth import (
-    hash_password,
-    verify_password,
-    create_access_token,
-    get_current_user_id,
-    get_optional_user_id,
-)
-
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / ".env")
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# --- DB ---
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+MOBILE_BACKEND_URL = os.environ.get("MOBILE_BACKEND_URL", "https://ad-free-video-12.emergent.host").rstrip("/")
+STRIPE_API_KEY = os.environ["STRIPE_API_KEY"]
+SUBSCRIPTION_AMOUNT = float(os.environ.get("SUBSCRIPTION_AMOUNT_CENTS", "99")) / 100.0
+SUBSCRIPTION_CURRENCY = os.environ.get("SUBSCRIPTION_CURRENCY", "usd")
 
-# --- Cloudinary ---
-cloudinary.config(
-    cloud_name=os.environ['CLOUDINARY_CLOUD_NAME'],
-    api_key=os.environ['CLOUDINARY_API_KEY'],
-    api_secret=os.environ['CLOUDINARY_API_SECRET'],
-    secure=True,
-)
+# Local Mongo used only for Stripe payment_transactions records
+mongo_url = os.environ["MONGO_URL"]
+mongo_client = AsyncIOMotorClient(mongo_url)
+db = mongo_client[os.environ["DB_NAME"]]
 
-# --- Stripe (via Emergent proxy with test key) ---
-STRIPE_API_KEY = os.environ['STRIPE_API_KEY']
-SUBSCRIPTION_AMOUNT = float(os.environ.get('SUBSCRIPTION_AMOUNT_CENTS', '99')) / 100.0  # $0.99
-SUBSCRIPTION_CURRENCY = os.environ.get('SUBSCRIPTION_CURRENCY', 'usd')
-PREMIUM_DURATION_DAYS = 30
+bearer = HTTPBearer(auto_error=False)
 
-# --- Constants ---
-MAX_VIDEO_SIZE_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
-ALLOWED_VIDEO_CONTENT_TYPES = {"video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-matroska"}
+# Reusable async client
+_http: Optional[httpx.AsyncClient] = None
 
-# ============================================================
-# Models
-# ============================================================
+
+def http_client() -> httpx.AsyncClient:
+    global _http
+    if _http is None:
+        _http = httpx.AsyncClient(base_url=MOBILE_BACKEND_URL, timeout=httpx.Timeout(120.0, connect=10.0))
+    return _http
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ============================================================
+# Helpers — forward request to mobile backend
+# ============================================================
+def _auth_header(creds: Optional[HTTPAuthorizationCredentials]) -> dict:
+    if creds and creds.credentials:
+        return {"Authorization": f"Bearer {creds.credentials}"}
+    return {}
+
+
+async def _proxy_json(method: str, path: str, *, creds=None, json_body=None, params=None) -> Any:
+    headers = _auth_header(creds)
+    r = await http_client().request(method, path, headers=headers, json=json_body, params=params)
+    if r.status_code >= 400:
+        try:
+            body = r.json()
+        except Exception:
+            body = {"detail": r.text[:300] or r.reason_phrase}
+        raise HTTPException(status_code=r.status_code, detail=body.get("detail", body))
+    if r.status_code == 204 or not r.content:
+        return {}
+    return r.json()
+
+
+# ============================================================
+# Mobile→Web shape translation
+# ============================================================
+def mobile_user_to_web(u: dict) -> dict:
+    if not u:
+        return {}
+    uid = u.get("id") or ""
+    return {
+        "id": uid,
+        "email": u.get("email", ""),
+        "username": u.get("username") or u.get("display_name") or "",
+        "display_name": u.get("display_name"),
+        "avatar_url": f"{MOBILE_BACKEND_URL}/api/users/{uid}/avatar" if u.get("has_avatar") else None,
+        "bio": u.get("bio"),
+        "created_at": u.get("created_at") or now_iso(),
+        "is_premium": bool(u.get("is_subscribed")),
+        "premium_until": u.get("current_period_end") or u.get("subscription_expires_at"),
+        "followers_count": u.get("followers", 0),
+        "following_count": u.get("following", 0),
+    }
+
+
+def mobile_video_to_web(v: dict) -> dict:
+    if not v:
+        return {}
+    vid = v.get("id") or ""
+    creator_id = v.get("creator_id") or ""
+    return {
+        "id": vid,
+        "title": v.get("title") or "Untitled",
+        "description": v.get("description"),
+        # `url` is filled by /api/videos/{id} endpoint via stream-url; in listings keep empty so paywall logic on watch page kicks in
+        "url": "",
+        "thumbnail_url": f"{MOBILE_BACKEND_URL}/api/videos/{vid}/thumbnail" if v.get("has_thumbnail") else None,
+        "public_id": vid,
+        "duration": v.get("duration_sec"),
+        "owner_id": creator_id,
+        "owner_username": v.get("creator_username") or v.get("creator_name"),
+        "owner_avatar": f"{MOBILE_BACKEND_URL}/api/users/{creator_id}/avatar" if creator_id else None,
+        "views": v.get("views", 0),
+        "likes": v.get("likes", 0),
+        "created_at": v.get("created_at") or now_iso(),
+    }
+
+
+# ============================================================
+# Pydantic request models (matching the web frontend)
+# ============================================================
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
@@ -90,526 +151,257 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(min_length=6, max_length=128)
 
 
-class UserPublic(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str
-    email: EmailStr
-    username: str
-    avatar_url: Optional[str] = None
-    bio: Optional[str] = None
-    created_at: str
-    is_premium: bool = False
-    premium_until: Optional[str] = None
-    followers_count: int = 0
-    following_count: int = 0
-
-
-class AuthResponse(BaseModel):
-    token: str
-    user: UserPublic
-
-
-class VideoPublic(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str
-    title: str
-    description: Optional[str] = None
-    url: str
-    thumbnail_url: Optional[str] = None
-    public_id: str
-    duration: Optional[float] = None
-    owner_id: str
-    owner_username: Optional[str] = None
-    owner_avatar: Optional[str] = None
-    views: int = 0
-    likes: int = 0
-    created_at: str
-
-
-class VideoUpdateRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-
-
 class CheckoutCreateRequest(BaseModel):
-    origin_url: str  # frontend origin, e.g. https://app.com
-
-
-class CheckoutCreateResponse(BaseModel):
-    url: str
-    session_id: str
-
-
-class CheckoutStatusResponse(BaseModel):
-    status: str
-    payment_status: str
-    amount_total: int
-    currency: str
-    is_premium: bool
-    premium_until: Optional[str] = None
+    origin_url: str
 
 
 # ============================================================
-# Helpers — mobile-app compatibility layer
+# App + router
 # ============================================================
-def _doc_id(doc: dict) -> str:
-    """Get document id, supporting both web ('id') and mobile ('_id') schemas."""
-    return doc.get("id") or doc.get("_id") or ""
-
-
-def _to_iso(v) -> Optional[str]:
-    """Normalize datetime|str|None into ISO-8601 string."""
-    if v is None:
-        return None
-    if isinstance(v, datetime):
-        if v.tzinfo is None:
-            v = v.replace(tzinfo=timezone.utc)
-        return v.isoformat()
-    return str(v)
-
-
-def _parse_dt(v) -> Optional[datetime]:
-    """Parse datetime|str into timezone-aware datetime."""
-    if v is None:
-        return None
-    if isinstance(v, datetime):
-        return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
-    try:
-        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-    except Exception:
-        return None
-
-
-async def _is_premium(user_doc: dict) -> bool:
-    """Premium if EITHER web's premium_until is in the future
-    OR mobile's is_subscribed=True (with subscription_expires_at in future, or 'active' status)."""
-    now = datetime.now(timezone.utc)
-
-    web_until = _parse_dt(user_doc.get("premium_until"))
-    if web_until and web_until > now:
-        return True
-
-    # Mobile schema
-    if user_doc.get("is_subscribed") is True:
-        exp = _parse_dt(user_doc.get("subscription_expires_at"))
-        if exp is None or exp > now:
-            return True
-        # status overrides if RC says active
-        status_val = (user_doc.get("subscription_status") or "").lower()
-        if status_val in ("active", "trialing"):
-            return True
-
-    return False
-
-
-async def _premium_until_iso(user_doc: dict) -> Optional[str]:
-    """Pick the latest expiry between web & mobile fields."""
-    web_until = _parse_dt(user_doc.get("premium_until"))
-    mob_until = _parse_dt(user_doc.get("subscription_expires_at"))
-    candidates = [d for d in (web_until, mob_until) if d is not None]
-    if not candidates:
-        # Subscribed but no expiry → return mobile status as a fallback
-        if user_doc.get("is_subscribed"):
-            return "active"
-        return None
-    return max(candidates).isoformat()
-
-
-async def _user_public(user_doc: dict, viewer_id: Optional[str] = None) -> dict:
-    is_premium = await _is_premium(user_doc)
-    return {
-        "id": _doc_id(user_doc),
-        "email": user_doc["email"],
-        "username": user_doc.get("username") or user_doc.get("display_name") or "",
-        "avatar_url": user_doc.get("avatar_url"),
-        "bio": user_doc.get("bio"),
-        "created_at": _to_iso(user_doc.get("created_at")) or now_iso(),
-        "is_premium": is_premium,
-        "premium_until": await _premium_until_iso(user_doc),
-        "followers_count": user_doc.get("followers_count", 0),
-        "following_count": user_doc.get("following_count", 0),
-    }
-
-
-async def _find_user_by_id(uid: str) -> Optional[dict]:
-    """Find user by either web 'id' or mobile '_id'."""
-    return await db.users.find_one({"$or": [{"id": uid}, {"_id": uid}]})
-
-
-async def _video_public(v: dict) -> dict:
-    """Map a video doc to public shape. Supports both web & mobile schemas."""
-    owner_id = v.get("owner_id") or v.get("user_id") or v.get("uploader_id") or ""
-    url = v.get("url") or v.get("stream_url") or v.get("video_url") or ""
-    thumb = v.get("thumbnail_url") or v.get("thumbnail") or v.get("poster_url")
-    return {
-        "id": _doc_id(v),
-        "title": v.get("title") or "Untitled",
-        "description": v.get("description"),
-        "url": url,
-        "thumbnail_url": thumb,
-        "public_id": v.get("public_id") or v.get("object_key") or _doc_id(v),
-        "duration": v.get("duration") or v.get("duration_seconds"),
-        "owner_id": owner_id,
-        "owner_username": v.get("owner_username") or v.get("username"),
-        "owner_avatar": v.get("owner_avatar") or v.get("avatar_url"),
-        "views": v.get("views") or v.get("view_count") or 0,
-        "likes": v.get("likes") or v.get("like_count") or 0,
-        "created_at": _to_iso(v.get("created_at")) or now_iso(),
-    }
-
-
-# ============================================================
-# App
-# ============================================================
-app = FastAPI(title="Slate Video API")
+app = FastAPI(title="WeClips Web (proxy)")
 api_router = APIRouter(prefix="/api")
 
 
 @api_router.get("/")
 async def root():
-    return {"message": "Slate Video API up", "ts": now_iso()}
+    return {"message": "WeClips web proxy up", "ts": now_iso(), "upstream": MOBILE_BACKEND_URL}
 
 
 # ============================================================
-# Auth routes
+# Auth (proxied)
 # ============================================================
-@api_router.post("/auth/signup", response_model=AuthResponse)
+@api_router.post("/auth/signup")
 async def signup(req: SignupRequest):
-    email = req.email.lower().strip()
-    existing = await db.users.find_one({"$or": [{"email": email}, {"username": req.username}]})
-    if existing:
-        if existing.get("email") == email:
-            raise HTTPException(status_code=400, detail="Email already registered")
-        raise HTTPException(status_code=400, detail="Username already taken")
-
-    user_id = str(uuid.uuid4())
-    doc = {
-        "_id": user_id,          # mobile-compat: mobile uses _id as UUID
-        "id": user_id,           # web schema field
-        "email": email,
-        "username": req.username.strip(),
-        "display_name": req.username.strip(),  # mobile-compat
-        "password_hash": hash_password(req.password),
-        "avatar_url": None,
-        "bio": None,
-        "created_at": now_iso(),
-        "premium_until": None,
-        "is_subscribed": False,         # mobile-compat
-        "subscription_status": "none",  # mobile-compat
-        "subscription_expires_at": None,
-        "followers_count": 0,
-        "following_count": 0,
+    """Forward to mobile. Mobile requires display_name. We use the username as display_name too."""
+    payload = {
+        "email": req.email.lower().strip(),
+        "password": req.password,
+        "display_name": req.username.strip()[:40],
+        "username": req.username.strip()[:20],
     }
-    await db.users.insert_one(doc)
-    token = create_access_token(user_id)
-    return AuthResponse(token=token, user=UserPublic(**await _user_public(doc)))
+    data = await _proxy_json("POST", "/api/auth/signup", json_body=payload)
+    token = data.get("access_token") or data.get("token")
+    if not token:
+        raise HTTPException(status_code=500, detail="No token returned from upstream")
+    me = await _proxy_json("GET", "/api/auth/me", creds=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token))
+    return {"token": token, "user": mobile_user_to_web(me)}
 
 
-@api_router.post("/auth/login", response_model=AuthResponse)
+@api_router.post("/auth/login")
 async def login(req: LoginRequest):
-    email = req.email.lower().strip()
-    user = await db.users.find_one({"email": email})
-    if not user or not verify_password(req.password, user.get("password_hash", "")):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_access_token(_doc_id(user))
-    return AuthResponse(token=token, user=UserPublic(**await _user_public(user)))
+    payload = {"email": req.email.lower().strip(), "password": req.password}
+    try:
+        data = await _proxy_json("POST", "/api/auth/login", json_body=payload)
+    except HTTPException as e:
+        # Map upstream "401" detail to a friendlier message but keep the status
+        raise HTTPException(status_code=e.status_code, detail=e.detail if e.detail else "Invalid email or password")
+    token = data.get("access_token") or data.get("token")
+    if not token:
+        raise HTTPException(status_code=500, detail="No token returned from upstream")
+    me = await _proxy_json("GET", "/api/auth/me", creds=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token))
+    return {"token": token, "user": mobile_user_to_web(me)}
 
 
-@api_router.get("/auth/me", response_model=UserPublic)
-async def me(user_id: str = Depends(get_current_user_id)):
-    user = await _find_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return UserPublic(**await _user_public(user))
-
-
-# ---- Password reset (matches mobile app contract) ----
-import secrets as _secrets
-
-
-def _frontend_origin(request: Request) -> str:
-    origin = request.headers.get("origin") or request.headers.get("referer")
-    if origin:
-        # strip path
-        from urllib.parse import urlparse
-        u = urlparse(origin)
-        return f"{u.scheme}://{u.netloc}"
-    return ""
+@api_router.get("/auth/me")
+async def me(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Missing token")
+    data = await _proxy_json("GET", "/api/auth/me", creds=creds)
+    return mobile_user_to_web(data)
 
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest, request: Request):
-    email = req.email.lower().strip()
-    user = await db.users.find_one({"email": email})
-
-    # Always return the same response to avoid email enumeration
-    response = {"status": "ok"}
-
-    if user:
-        token = _secrets.token_urlsafe(32)
-        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
-        await db.password_reset_tokens.insert_one({
-            "token": token,
-            "user_id": _doc_id(user),
-            "email": email,
-            "expires_at": expires_at,
-            "created_at": now_iso(),
-            "used": False,
-        })
-        # No email service configured yet → return dev_reset_url so the user can complete the flow
-        origin = _frontend_origin(request)
-        if origin:
-            response["dev_reset_url"] = f"{origin}/reset?token={token}"
-        else:
-            response["dev_reset_url"] = f"/reset?token={token}"
-
-    return response
+    # Mobile takes the same shape
+    data = await _proxy_json("POST", "/api/auth/forgot-password", json_body={"email": req.email.lower().strip()})
+    # If upstream returned a dev URL, rewrite to point at our frontend
+    if "dev_reset_url" in data:
+        try:
+            from urllib.parse import urlparse, parse_qs
+            token = parse_qs(urlparse(data["dev_reset_url"]).query).get("token", [""])[0]
+            origin = request.headers.get("origin") or request.headers.get("referer") or ""
+            if origin and token:
+                from urllib.parse import urlparse as up
+                u = up(origin)
+                data["dev_reset_url"] = f"{u.scheme}://{u.netloc}/reset?token={token}"
+        except Exception:
+            pass
+    return data
 
 
 @api_router.post("/auth/reset-password")
 async def reset_password(req: ResetPasswordRequest):
-    rec = await db.password_reset_tokens.find_one({"token": req.token, "used": False})
-    if not rec:
-        raise HTTPException(status_code=400, detail="Invalid or expired token")
-    try:
-        exp = datetime.fromisoformat(rec["expires_at"])
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    if exp < datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Token expired")
-
-    user = await _find_user_by_id(rec["user_id"])
-    if not user:
-        raise HTTPException(status_code=400, detail="User not found")
-
-    await db.users.update_one(
-        {"id": user["id"]},
-        {"$set": {"password_hash": hash_password(req.new_password)}},
-    )
-    await db.password_reset_tokens.update_one(
-        {"token": req.token},
-        {"$set": {"used": True, "used_at": now_iso()}},
-    )
-    return {"status": "ok"}
+    return await _proxy_json("POST", "/api/auth/reset-password",
+                              json_body={"token": req.token, "new_password": req.new_password})
 
 
 # ============================================================
-# Users / Follow
+# Videos (proxied)
 # ============================================================
-class UserProfileResponse(BaseModel):
-    user: UserPublic
-    is_following: bool = False
-    videos: List[VideoPublic] = []
+@api_router.get("/videos")
+async def list_videos(limit: int = 50, skip: int = 0,
+                       creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    data = await _proxy_json("GET", "/api/videos", creds=creds, params={"limit": limit, "skip": skip})
+    return [mobile_video_to_web(v) for v in (data or [])]
 
 
-async def _find_user_by_username(username: str) -> Optional[dict]:
-    """Lookup by username (web) or display_name (mobile fallback)."""
-    return await db.users.find_one({"$or": [{"username": username}, {"display_name": username}]})
+@api_router.get("/videos/following")
+async def list_following_videos(limit: int = 50,
+                                 creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    # Get my id
+    me_data = await _proxy_json("GET", "/api/auth/me", creds=creds)
+    my_id = me_data.get("id")
+    if not my_id:
+        return []
+    following = await _proxy_json("GET", f"/api/users/{my_id}/following", creds=creds)
+    follow_ids = {u.get("id") for u in (following or []) if u.get("id")}
+    if not follow_ids:
+        return []
+    # Fetch all visible videos and filter (mobile API has no native feed endpoint)
+    vids = await _proxy_json("GET", "/api/videos", creds=creds, params={"limit": 200})
+    out = [mobile_video_to_web(v) for v in (vids or []) if v.get("creator_id") in follow_ids]
+    return out[:limit]
 
 
-@api_router.get("/users/{username}", response_model=UserProfileResponse)
-async def get_user_profile(username: str, viewer_id: Optional[str] = Depends(get_optional_user_id)):
-    user = await _find_user_by_username(username)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    uid = _doc_id(user)
-    is_following = False
-    if viewer_id and viewer_id != uid:
-        f = await db.follows.find_one({"follower_id": viewer_id, "following_id": uid})
-        is_following = bool(f)
-
-    vids = await db.videos.find(
-        {"$or": [{"owner_id": uid}, {"user_id": uid}, {"uploader_id": uid}]}
-    ).sort("created_at", -1).to_list(200)
-    return UserProfileResponse(
-        user=UserPublic(**await _user_public(user)),
-        is_following=is_following,
-        videos=[VideoPublic(**await _video_public(v)) for v in vids],
-    )
-
-
-@api_router.get("/users", response_model=List[UserPublic])
-async def list_users(limit: int = 50):
-    users = await db.users.find({}).sort("created_at", -1).to_list(limit)
-    return [UserPublic(**await _user_public(u)) for u in users]
+@api_router.get("/videos/{video_id}")
+async def get_video(video_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    # Public metadata
+    v = await _proxy_json("GET", f"/api/videos/{video_id}", creds=creds)
+    out = mobile_video_to_web(v)
+    # Try to fetch a signed playable URL (requires auth + active subscription on upstream)
+    if creds:
+        try:
+            url_data = await _proxy_json("GET", f"/api/videos/{video_id}/stream-url", creds=creds)
+            if isinstance(url_data, dict):
+                out["url"] = url_data.get("url") or url_data.get("stream_url") or ""
+            elif isinstance(url_data, str):
+                out["url"] = url_data
+        except HTTPException as e:
+            # 401 → login required, 402 → premium required: bubble up so frontend paywalls
+            raise
+    else:
+        raise HTTPException(status_code=401, detail="Login required")
+    return out
 
 
-@api_router.post("/users/{username}/follow")
-async def follow_user(username: str, user_id: str = Depends(get_current_user_id)):
-    target = await _find_user_by_username(username)
-    if not target:
-        raise HTTPException(status_code=404, detail="User not found")
-    tid = _doc_id(target)
-    if tid == user_id:
-        raise HTTPException(status_code=400, detail="Cannot follow yourself")
-    existing = await db.follows.find_one({"follower_id": user_id, "following_id": tid})
-    if existing:
-        return {"following": True}
-    await db.follows.insert_one({
-        "follower_id": user_id,
-        "following_id": tid,
-        "created_at": now_iso(),
-    })
-    await db.users.update_one({"$or": [{"id": tid}, {"_id": tid}]}, {"$inc": {"followers_count": 1}})
-    await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$inc": {"following_count": 1}})
-    return {"following": True}
+@api_router.delete("/videos/{video_id}")
+async def delete_video(video_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    await _proxy_json("DELETE", f"/api/videos/{video_id}", creds=creds)
+    return {"deleted": True}
 
 
-@api_router.delete("/users/{username}/follow")
-async def unfollow_user(username: str, user_id: str = Depends(get_current_user_id)):
-    target = await _find_user_by_username(username)
-    if not target:
-        raise HTTPException(status_code=404, detail="User not found")
-    tid = _doc_id(target)
-    res = await db.follows.delete_one({"follower_id": user_id, "following_id": tid})
-    if res.deleted_count:
-        await db.users.update_one({"$or": [{"id": tid}, {"_id": tid}]}, {"$inc": {"followers_count": -1}})
-        await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$inc": {"following_count": -1}})
-    return {"following": False}
-
-
-# ============================================================
-# Videos
-# ============================================================
-async def _require_premium(user_id: str) -> dict:
-    user = await _find_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    if not await _is_premium(user):
-        raise HTTPException(status_code=402, detail="Premium subscription required")
-    return user
-
-
-@api_router.post("/videos/upload", response_model=VideoPublic)
+@api_router.post("/videos/upload")
 async def upload_video(
     title: str = Form(...),
     description: Optional[str] = Form(None),
     file: UploadFile = File(...),
-    user_id: str = Depends(get_current_user_id),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer),
 ):
-    user = await _require_premium(user_id)
-
-    if file.content_type not in ALLOWED_VIDEO_CONTENT_TYPES:
-        raise HTTPException(status_code=400, detail=f"Unsupported video format: {file.content_type}")
-
-    contents = await file.read()
-    if len(contents) > MAX_VIDEO_SIZE_BYTES:
-        raise HTTPException(status_code=400, detail="Video exceeds 100MB limit")
-    if len(contents) == 0:
-        raise HTTPException(status_code=400, detail="Empty file")
-
-    try:
-        upload_res = cloudinary.uploader.upload_large(
-            contents,
-            resource_type="video",
-            folder="slate_videos",
-            chunk_size=6_000_000,
-        )
-    except Exception as e:
-        logger.exception("Cloudinary upload failed")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
-
-    video_id = str(uuid.uuid4())
-    public_id = upload_res.get("public_id")
-    secure_url = upload_res.get("secure_url")
-    # Cloudinary thumbnail: replace .mp4 with .jpg, also use eager-style URL
-    thumbnail_url = None
-    if public_id:
-        thumbnail_url = f"https://res.cloudinary.com/{os.environ['CLOUDINARY_CLOUD_NAME']}/video/upload/so_2,w_640,h_360,c_fill,q_auto,f_jpg/{public_id}.jpg"
-
-    doc = {
-        "id": video_id,
-        "title": title.strip()[:200],
-        "description": (description or "").strip()[:2000] or None,
-        "url": secure_url,
-        "thumbnail_url": thumbnail_url,
-        "public_id": public_id,
-        "duration": upload_res.get("duration"),
-        "owner_id": user_id,
-        "owner_username": user["username"],
-        "owner_avatar": user.get("avatar_url"),
-        "views": 0,
-        "likes": 0,
-        "created_at": now_iso(),
-    }
-    await db.videos.insert_one(doc)
-    return VideoPublic(**await _video_public(doc))
-
-
-@api_router.get("/videos", response_model=List[VideoPublic])
-async def list_videos(limit: int = 50, skip: int = 0):
-    vids = await db.videos.find({}).sort("created_at", -1).skip(skip).to_list(limit)
-    return [VideoPublic(**await _video_public(v)) for v in vids]
-
-
-@api_router.get("/videos/following", response_model=List[VideoPublic])
-async def list_following_videos(limit: int = 50, user_id: str = Depends(get_current_user_id)):
-    follows = await db.follows.find({"follower_id": user_id}).to_list(1000)
-    following_ids = [f["following_id"] for f in follows]
-    if not following_ids:
-        return []
-    vids = await db.videos.find(
-        {"$or": [
-            {"owner_id": {"$in": following_ids}},
-            {"user_id": {"$in": following_ids}},
-            {"uploader_id": {"$in": following_ids}},
-        ]}
-    ).sort("created_at", -1).to_list(limit)
-    return [VideoPublic(**await _video_public(v)) for v in vids]
-
-
-@api_router.get("/videos/{video_id}", response_model=VideoPublic)
-async def get_video(video_id: str, viewer_id: Optional[str] = Depends(get_optional_user_id)):
-    v = await db.videos.find_one({"$or": [{"id": video_id}, {"_id": video_id}]})
-    if not v:
-        raise HTTPException(status_code=404, detail="Video not found")
-    # Paywall: only premium subscribers can watch
-    if not viewer_id:
+    """Stream upload to mobile backend's POST /api/videos (multipart form)."""
+    if not creds:
         raise HTTPException(status_code=401, detail="Login required")
-    viewer = await _find_user_by_id(viewer_id)
-    if not viewer or not await _is_premium(viewer):
-        raise HTTPException(status_code=402, detail="Premium subscription required to watch")
-
-    # increment views
-    await db.videos.update_one({"$or": [{"id": video_id}, {"_id": video_id}]}, {"$inc": {"views": 1}})
-    v["views"] = (v.get("views") or v.get("view_count") or 0) + 1
-    return VideoPublic(**await _video_public(v))
-
-
-@api_router.delete("/videos/{video_id}")
-async def delete_video(video_id: str, user_id: str = Depends(get_current_user_id)):
-    v = await db.videos.find_one({"$or": [{"id": video_id}, {"_id": video_id}]})
-    if not v:
-        raise HTTPException(status_code=404, detail="Video not found")
-    owner_id = v.get("owner_id") or v.get("user_id") or v.get("uploader_id")
-    if owner_id != user_id:
-        raise HTTPException(status_code=403, detail="Not your video")
-    try:
-        if v.get("public_id"):
-            cloudinary.uploader.destroy(v["public_id"], resource_type="video")
-    except Exception:
-        logger.warning("Cloudinary destroy failed for %s", v.get("public_id"))
-    await db.videos.delete_one({"$or": [{"id": video_id}, {"_id": video_id}]})
-    return {"deleted": True}
+    headers = _auth_header(creds)
+    # Read file fully (FastAPI UploadFile is a SpooledTemporaryFile under the hood)
+    contents = await file.read()
+    files = {"file": (file.filename or "video.mp4", contents, file.content_type or "video/mp4")}
+    data = {
+        "title": title.strip()[:120],
+        "description": (description or "").strip()[:2000],
+        "mime_type": file.content_type or "video/mp4",
+        "no_ai_confirmed": "true",
+    }
+    r = await http_client().post("/api/videos", headers=headers, data=data, files=files, timeout=httpx.Timeout(600.0, connect=10.0))
+    if r.status_code >= 400:
+        try:
+            body = r.json()
+        except Exception:
+            body = {"detail": r.text[:500]}
+        raise HTTPException(status_code=r.status_code, detail=body.get("detail", body))
+    return mobile_video_to_web(r.json())
 
 
 # ============================================================
-# Stripe Payments (one-time $0.99 -> 30 days premium)
+# Users / Follow (proxied with username→id resolution)
+# ============================================================
+async def _resolve_username(username: str, creds=None) -> Optional[dict]:
+    """Map a username to the mobile user record via search."""
+    res = await _proxy_json("GET", "/api/users/search", creds=creds, params={"q": username})
+    if not res:
+        return None
+    # exact match first
+    for u in res:
+        if (u.get("username") or "").lower() == username.lower():
+            return u
+    return res[0]
+
+
+@api_router.get("/users/{username}")
+async def get_user_profile(username: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    found = await _resolve_username(username, creds=creds)
+    if not found:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_id = found["id"]
+    # Get full public record + user's videos
+    user = await _proxy_json("GET", f"/api/users/{user_id}", creds=creds)
+    user_web = mobile_user_to_web(user)
+    # videos by user
+    vids = await _proxy_json("GET", f"/api/users/{user_id}/videos", creds=creds)
+    vids_web = [mobile_video_to_web(v) for v in (vids or [])]
+    # is_following
+    is_following = False
+    if creds:
+        try:
+            fs = await _proxy_json("GET", f"/api/users/{user_id}/follow-status", creds=creds)
+            is_following = bool(fs.get("is_following"))
+        except HTTPException:
+            pass
+    return {"user": user_web, "is_following": is_following, "videos": vids_web}
+
+
+@api_router.post("/users/{username}/follow")
+async def follow_user(username: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    found = await _resolve_username(username, creds=creds)
+    if not found:
+        raise HTTPException(status_code=404, detail="User not found")
+    await _proxy_json("POST", f"/api/users/{found['id']}/follow", creds=creds)
+    return {"following": True}
+
+
+@api_router.delete("/users/{username}/follow")
+async def unfollow_user(username: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    found = await _resolve_username(username, creds=creds)
+    if not found:
+        raise HTTPException(status_code=404, detail="User not found")
+    await _proxy_json("DELETE", f"/api/users/{found['id']}/follow", creds=creds)
+    return {"following": False}
+
+
+# ============================================================
+# Stripe checkout (local), syncs subscription back to mobile on success
 # ============================================================
 def _get_stripe(host_url: str) -> StripeCheckout:
     webhook_url = f"{host_url}/api/payments/webhook/stripe"
     return StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
 
 
-@api_router.post("/payments/checkout", response_model=CheckoutCreateResponse)
-async def create_checkout(req: CheckoutCreateRequest, request: Request, user_id: str = Depends(get_current_user_id)):
-    user = await _find_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+@api_router.post("/payments/checkout")
+async def create_checkout(req: CheckoutCreateRequest, request: Request,
+                          creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    me = await _proxy_json("GET", "/api/auth/me", creds=creds)
+    user_id = me.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User not found")
 
-    # Build absolute backend url for webhook
     host_url = str(request.base_url).rstrip("/")
     stripe_client = _get_stripe(host_url)
 
@@ -623,17 +415,12 @@ async def create_checkout(req: CheckoutCreateRequest, request: Request, user_id:
         cancel_url=cancel_url,
         metadata={
             "user_id": user_id,
-            "plan": "monthly_premium",
-            "duration_days": str(PREMIUM_DURATION_DAYS),
+            "plan": "monthly_membership",
+            "user_token": creds.credentials,  # so the webhook/status can sync to upstream
         },
     )
-    try:
-        res = await stripe_client.create_checkout_session(checkout_req)
-    except Exception as e:
-        logger.exception("Stripe checkout creation failed")
-        raise HTTPException(status_code=500, detail=f"Checkout failed: {e}")
+    res = await stripe_client.create_checkout_session(checkout_req)
 
-    # Record pending transaction
     await db.payment_transactions.insert_one({
         "id": str(uuid.uuid4()),
         "session_id": res.session_id,
@@ -642,55 +429,62 @@ async def create_checkout(req: CheckoutCreateRequest, request: Request, user_id:
         "currency": SUBSCRIPTION_CURRENCY,
         "payment_status": "pending",
         "created_at": now_iso(),
-        "metadata": checkout_req.metadata,
+        "user_token": creds.credentials,
     })
-    return CheckoutCreateResponse(url=res.url, session_id=res.session_id)
+    return {"url": res.url, "session_id": res.session_id}
 
 
-@api_router.get("/payments/checkout/{session_id}", response_model=CheckoutStatusResponse)
-async def get_checkout_status(session_id: str, request: Request, user_id: str = Depends(get_current_user_id)):
+async def _activate_on_mobile(token: str) -> None:
+    """Mark the user as subscribed on the mobile backend."""
+    try:
+        r = await http_client().post("/api/subscription/dev-activate",
+                                      headers={"Authorization": f"Bearer {token}"})
+        if r.status_code >= 400:
+            logger.warning("Mobile dev-activate failed %s: %s", r.status_code, r.text[:200])
+        else:
+            logger.info("Mobile dev-activate ok")
+    except Exception as e:
+        logger.exception("Mobile dev-activate exception: %s", e)
+
+
+@api_router.get("/payments/checkout/{session_id}")
+async def get_checkout_status(session_id: str, request: Request,
+                               creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
     host_url = str(request.base_url).rstrip("/")
     stripe_client = _get_stripe(host_url)
-
-    try:
-        s = await stripe_client.get_checkout_status(session_id)
-    except Exception as e:
-        logger.exception("Stripe status check failed")
-        raise HTTPException(status_code=500, detail=f"Status fetch failed: {e}")
+    s = await stripe_client.get_checkout_status(session_id)
 
     txn = await db.payment_transactions.find_one({"session_id": session_id})
     already_processed = txn and txn.get("payment_status") == "paid"
 
-    if s.payment_status == "paid" and not already_processed:
-        # Grant 30 days premium
-        user = await _find_user_by_id(user_id)
-        if user:
-            current_until_str = user.get("premium_until")
-            base_dt = datetime.now(timezone.utc)
-            if current_until_str:
-                try:
-                    cur_dt = datetime.fromisoformat(current_until_str)
-                    if cur_dt > base_dt:
-                        base_dt = cur_dt
-                except Exception:
-                    pass
-            new_until = (base_dt + timedelta(days=PREMIUM_DURATION_DAYS)).isoformat()
-            await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$set": {"premium_until": new_until}})
-
+    if s.payment_status == "paid" and not already_processed and txn:
+        token = txn.get("user_token") or (creds.credentials if creds else None)
+        if token:
+            await _activate_on_mobile(token)
         await db.payment_transactions.update_one(
             {"session_id": session_id},
             {"$set": {"payment_status": "paid", "paid_at": now_iso()}},
         )
 
-    user = await _find_user_by_id(user_id)
-    return CheckoutStatusResponse(
-        status=s.status,
-        payment_status=s.payment_status,
-        amount_total=int(s.amount_total or 0),
-        currency=s.currency or SUBSCRIPTION_CURRENCY,
-        is_premium=await _is_premium(user) if user else False,
-        premium_until=user.get("premium_until") if user else None,
-    )
+    # Fetch fresh user status from mobile
+    is_premium = False
+    premium_until = None
+    if creds:
+        try:
+            me = await _proxy_json("GET", "/api/auth/me", creds=creds)
+            is_premium = bool(me.get("is_subscribed"))
+            premium_until = me.get("current_period_end") or me.get("subscription_expires_at")
+        except HTTPException:
+            pass
+
+    return {
+        "status": s.status,
+        "payment_status": s.payment_status,
+        "amount_total": int(s.amount_total or 0),
+        "currency": s.currency or SUBSCRIPTION_CURRENCY,
+        "is_premium": is_premium,
+        "premium_until": premium_until,
+    }
 
 
 @api_router.post("/payments/webhook/stripe")
@@ -708,25 +502,13 @@ async def stripe_webhook(request: Request):
     if event.payment_status == "paid":
         txn = await db.payment_transactions.find_one({"session_id": event.session_id})
         if txn and txn.get("payment_status") != "paid":
-            user_id = txn.get("user_id")
-            user = await _find_user_by_id(user_id)
-            if user:
-                current_until_str = user.get("premium_until")
-                base_dt = datetime.now(timezone.utc)
-                if current_until_str:
-                    try:
-                        cur_dt = datetime.fromisoformat(current_until_str)
-                        if cur_dt > base_dt:
-                            base_dt = cur_dt
-                    except Exception:
-                        pass
-                new_until = (base_dt + timedelta(days=PREMIUM_DURATION_DAYS)).isoformat()
-                await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$set": {"premium_until": new_until}})
+            token = txn.get("user_token")
+            if token:
+                await _activate_on_mobile(token)
             await db.payment_transactions.update_one(
                 {"session_id": event.session_id},
                 {"$set": {"payment_status": "paid", "paid_at": now_iso()}},
             )
-
     return {"ok": True}
 
 
@@ -737,34 +519,16 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-@app.on_event("startup")
-async def startup_event():
-    async def _ix(coro, label):
-        try:
-            await coro
-        except Exception as e:
-            # likely already created by the mobile backend with slightly different opts; safe to ignore
-            logger.info("index %s already exists or skipped: %s", label, str(e)[:80])
-    try:
-        await _ix(db.users.create_index("email", unique=True), "users.email")
-        await _ix(db.users.create_index("username", unique=True), "users.username")
-        await _ix(db.videos.create_index([("created_at", -1)]), "videos.created_at")
-        await _ix(db.videos.create_index("owner_id"), "videos.owner_id")
-        await _ix(db.follows.create_index([("follower_id", 1), ("following_id", 1)], unique=True), "follows.compound")
-        await _ix(db.payment_transactions.create_index("session_id", unique=True), "payment_transactions.session_id")
-        await _ix(db.password_reset_tokens.create_index("token", unique=True), "password_reset_tokens.token")
-        await _ix(db.password_reset_tokens.create_index("expires_at"), "password_reset_tokens.expires_at")
-        logger.info("Indexes ensured.")
-    except Exception as e:
-        logger.warning("Skipping index creation; DB unreachable: %s", e)
-
-
 @app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+async def shutdown_event():
+    global _http
+    if _http is not None:
+        await _http.aclose()
+        _http = None
+    mongo_client.close()
