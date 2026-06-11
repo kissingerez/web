@@ -48,6 +48,9 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 - Removed duplicate "Become a Member" hero button on guest Discover screen (sidebar button remains).
 - Upload limits raised on web: 25GB / 180 min (UI validation + proxy timeout 2h). ⚠️ Upstream mobile API still enforces max_video_size_bytes=5GB (config) — files >5GB will be rejected upstream until the mobile backend's limit is raised.
 
+### 2026-06-11 — Proxy hardening
+- `_proxy_json` now retries GETs once on transient upstream/Cloudflare errors (5xx/52x + transport failures) and returns a friendly "WeClips is having a moment…" message instead of leaking raw Cloudflare/HTML error pages to users. JSON error details (e.g., "Not authenticated") still pass through unchanged.
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)

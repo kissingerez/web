@@ -7,6 +7,7 @@ Stripe checkout stays local; on success we call the mobile backend's
 /api/subscription/dev-activate to grant subscription in the mobile DB.
 """
 import os
+import asyncio
 import html as html_lib
 import logging
 import uuid
@@ -70,15 +71,37 @@ def _auth_header(creds: Optional[HTTPAuthorizationCredentials]) -> dict:
     return {}
 
 
+_TRANSIENT_STATUS = {500, 502, 503, 504, 520, 521, 522, 523, 524}
+_FRIENDLY_UPSTREAM_ERROR = "WeClips is having a moment — please try again in a few seconds."
+
+
 async def _proxy_json(method: str, path: str, *, creds=None, json_body=None, params=None) -> Any:
     headers = _auth_header(creds)
-    r = await http_client().request(method, path, headers=headers, json=json_body, params=params)
+    is_get = method.upper() == "GET"
+    r = None
+    for attempt in range(2):
+        try:
+            r = await http_client().request(method, path, headers=headers, json=json_body, params=params)
+        except httpx.HTTPError:
+            # network/transport failure to upstream
+            if is_get and attempt == 0:
+                await asyncio.sleep(0.5)
+                continue
+            raise HTTPException(status_code=503, detail=_FRIENDLY_UPSTREAM_ERROR)
+        # retry transient upstream/Cloudflare errors once (GET only, writes are not retried)
+        if r.status_code in _TRANSIENT_STATUS and is_get and attempt == 0:
+            await asyncio.sleep(0.5)
+            continue
+        break
     if r.status_code >= 400:
         try:
             body = r.json()
+            detail = body.get("detail", body)
         except Exception:
-            body = {"detail": r.text[:300] or r.reason_phrase}
-        raise HTTPException(status_code=r.status_code, detail=body.get("detail", body))
+            # non-JSON body (e.g. Cloudflare HTML error page) — never leak raw text to users
+            logger.warning("Upstream non-JSON error %s on %s %s: %s", r.status_code, method, path, r.text[:200])
+            raise HTTPException(status_code=502, detail=_FRIENDLY_UPSTREAM_ERROR)
+        raise HTTPException(status_code=r.status_code, detail=detail)
     if r.status_code == 204 or not r.content:
         return {}
     return r.json()
