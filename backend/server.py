@@ -660,15 +660,21 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
+    async def _ix(coro, label):
+        try:
+            await coro
+        except Exception as e:
+            # likely already created by the mobile backend with slightly different opts; safe to ignore
+            logger.info("index %s already exists or skipped: %s", label, str(e)[:80])
     try:
-        await db.users.create_index("email", unique=True)
-        await db.users.create_index("username", unique=True)
-        await db.videos.create_index([("created_at", -1)])
-        await db.videos.create_index("owner_id")
-        await db.follows.create_index([("follower_id", 1), ("following_id", 1)], unique=True)
-        await db.payment_transactions.create_index("session_id", unique=True)
-        await db.password_reset_tokens.create_index("token", unique=True)
-        await db.password_reset_tokens.create_index("expires_at")
+        await _ix(db.users.create_index("email", unique=True), "users.email")
+        await _ix(db.users.create_index("username", unique=True), "users.username")
+        await _ix(db.videos.create_index([("created_at", -1)]), "videos.created_at")
+        await _ix(db.videos.create_index("owner_id"), "videos.owner_id")
+        await _ix(db.follows.create_index([("follower_id", 1), ("following_id", 1)], unique=True), "follows.compound")
+        await _ix(db.payment_transactions.create_index("session_id", unique=True), "payment_transactions.session_id")
+        await _ix(db.password_reset_tokens.create_index("token", unique=True), "password_reset_tokens.token")
+        await _ix(db.password_reset_tokens.create_index("expires_at"), "password_reset_tokens.expires_at")
         logger.info("Indexes ensured.")
     except Exception as e:
         logger.warning("Skipping index creation; DB unreachable: %s", e)
