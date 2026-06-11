@@ -150,50 +150,112 @@ class CheckoutStatusResponse(BaseModel):
 
 
 # ============================================================
-# Helpers
+# Helpers — mobile-app compatibility layer
 # ============================================================
-async def _is_premium(user_doc: dict) -> bool:
-    until = user_doc.get("premium_until")
-    if not until:
-        return False
+def _doc_id(doc: dict) -> str:
+    """Get document id, supporting both web ('id') and mobile ('_id') schemas."""
+    return doc.get("id") or doc.get("_id") or ""
+
+
+def _to_iso(v) -> Optional[str]:
+    """Normalize datetime|str|None into ISO-8601 string."""
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.isoformat()
+    return str(v)
+
+
+def _parse_dt(v) -> Optional[datetime]:
+    """Parse datetime|str into timezone-aware datetime."""
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
     try:
-        dt = datetime.fromisoformat(until)
-        return dt > datetime.now(timezone.utc)
+        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     except Exception:
-        return False
+        return None
+
+
+async def _is_premium(user_doc: dict) -> bool:
+    """Premium if EITHER web's premium_until is in the future
+    OR mobile's is_subscribed=True (with subscription_expires_at in future, or 'active' status)."""
+    now = datetime.now(timezone.utc)
+
+    web_until = _parse_dt(user_doc.get("premium_until"))
+    if web_until and web_until > now:
+        return True
+
+    # Mobile schema
+    if user_doc.get("is_subscribed") is True:
+        exp = _parse_dt(user_doc.get("subscription_expires_at"))
+        if exp is None or exp > now:
+            return True
+        # status overrides if RC says active
+        status_val = (user_doc.get("subscription_status") or "").lower()
+        if status_val in ("active", "trialing"):
+            return True
+
+    return False
+
+
+async def _premium_until_iso(user_doc: dict) -> Optional[str]:
+    """Pick the latest expiry between web & mobile fields."""
+    web_until = _parse_dt(user_doc.get("premium_until"))
+    mob_until = _parse_dt(user_doc.get("subscription_expires_at"))
+    candidates = [d for d in (web_until, mob_until) if d is not None]
+    if not candidates:
+        # Subscribed but no expiry → return mobile status as a fallback
+        if user_doc.get("is_subscribed"):
+            return "active"
+        return None
+    return max(candidates).isoformat()
 
 
 async def _user_public(user_doc: dict, viewer_id: Optional[str] = None) -> dict:
     is_premium = await _is_premium(user_doc)
     return {
-        "id": user_doc["id"],
+        "id": _doc_id(user_doc),
         "email": user_doc["email"],
-        "username": user_doc["username"],
+        "username": user_doc.get("username") or user_doc.get("display_name") or "",
         "avatar_url": user_doc.get("avatar_url"),
         "bio": user_doc.get("bio"),
-        "created_at": user_doc["created_at"],
+        "created_at": _to_iso(user_doc.get("created_at")) or now_iso(),
         "is_premium": is_premium,
-        "premium_until": user_doc.get("premium_until"),
+        "premium_until": await _premium_until_iso(user_doc),
         "followers_count": user_doc.get("followers_count", 0),
         "following_count": user_doc.get("following_count", 0),
     }
 
 
+async def _find_user_by_id(uid: str) -> Optional[dict]:
+    """Find user by either web 'id' or mobile '_id'."""
+    return await db.users.find_one({"$or": [{"id": uid}, {"_id": uid}]})
+
+
 async def _video_public(v: dict) -> dict:
+    """Map a video doc to public shape. Supports both web & mobile schemas."""
+    owner_id = v.get("owner_id") or v.get("user_id") or v.get("uploader_id") or ""
+    url = v.get("url") or v.get("stream_url") or v.get("video_url") or ""
+    thumb = v.get("thumbnail_url") or v.get("thumbnail") or v.get("poster_url")
     return {
-        "id": v["id"],
-        "title": v["title"],
+        "id": _doc_id(v),
+        "title": v.get("title") or "Untitled",
         "description": v.get("description"),
-        "url": v["url"],
-        "thumbnail_url": v.get("thumbnail_url"),
-        "public_id": v["public_id"],
-        "duration": v.get("duration"),
-        "owner_id": v["owner_id"],
-        "owner_username": v.get("owner_username"),
-        "owner_avatar": v.get("owner_avatar"),
-        "views": v.get("views", 0),
-        "likes": v.get("likes", 0),
-        "created_at": v["created_at"],
+        "url": url,
+        "thumbnail_url": thumb,
+        "public_id": v.get("public_id") or v.get("object_key") or _doc_id(v),
+        "duration": v.get("duration") or v.get("duration_seconds"),
+        "owner_id": owner_id,
+        "owner_username": v.get("owner_username") or v.get("username"),
+        "owner_avatar": v.get("owner_avatar") or v.get("avatar_url"),
+        "views": v.get("views") or v.get("view_count") or 0,
+        "likes": v.get("likes") or v.get("like_count") or 0,
+        "created_at": _to_iso(v.get("created_at")) or now_iso(),
     }
 
 
@@ -223,14 +285,19 @@ async def signup(req: SignupRequest):
 
     user_id = str(uuid.uuid4())
     doc = {
-        "id": user_id,
+        "_id": user_id,          # mobile-compat: mobile uses _id as UUID
+        "id": user_id,           # web schema field
         "email": email,
         "username": req.username.strip(),
+        "display_name": req.username.strip(),  # mobile-compat
         "password_hash": hash_password(req.password),
         "avatar_url": None,
         "bio": None,
         "created_at": now_iso(),
         "premium_until": None,
+        "is_subscribed": False,         # mobile-compat
+        "subscription_status": "none",  # mobile-compat
+        "subscription_expires_at": None,
         "followers_count": 0,
         "following_count": 0,
     }
@@ -245,13 +312,13 @@ async def login(req: LoginRequest):
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(req.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_access_token(user["id"])
+    token = create_access_token(_doc_id(user))
     return AuthResponse(token=token, user=UserPublic(**await _user_public(user)))
 
 
 @api_router.get("/auth/me", response_model=UserPublic)
 async def me(user_id: str = Depends(get_current_user_id)):
-    user = await db.users.find_one({"id": user_id})
+    user = await _find_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return UserPublic(**await _user_public(user))
@@ -284,7 +351,7 @@ async def forgot_password(req: ForgotPasswordRequest, request: Request):
         expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         await db.password_reset_tokens.insert_one({
             "token": token,
-            "user_id": user["id"],
+            "user_id": _doc_id(user),
             "email": email,
             "expires_at": expires_at,
             "created_at": now_iso(),
@@ -312,7 +379,7 @@ async def reset_password(req: ResetPasswordRequest):
     if exp < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Token expired")
 
-    user = await db.users.find_one({"id": rec["user_id"]})
+    user = await _find_user_by_id(rec["user_id"])
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
 
@@ -336,18 +403,26 @@ class UserProfileResponse(BaseModel):
     videos: List[VideoPublic] = []
 
 
+async def _find_user_by_username(username: str) -> Optional[dict]:
+    """Lookup by username (web) or display_name (mobile fallback)."""
+    return await db.users.find_one({"$or": [{"username": username}, {"display_name": username}]})
+
+
 @api_router.get("/users/{username}", response_model=UserProfileResponse)
 async def get_user_profile(username: str, viewer_id: Optional[str] = Depends(get_optional_user_id)):
-    user = await db.users.find_one({"username": username})
+    user = await _find_user_by_username(username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    uid = _doc_id(user)
     is_following = False
-    if viewer_id and viewer_id != user["id"]:
-        f = await db.follows.find_one({"follower_id": viewer_id, "following_id": user["id"]})
+    if viewer_id and viewer_id != uid:
+        f = await db.follows.find_one({"follower_id": viewer_id, "following_id": uid})
         is_following = bool(f)
 
-    vids = await db.videos.find({"owner_id": user["id"]}).sort("created_at", -1).to_list(200)
+    vids = await db.videos.find(
+        {"$or": [{"owner_id": uid}, {"user_id": uid}, {"uploader_id": uid}]}
+    ).sort("created_at", -1).to_list(200)
     return UserProfileResponse(
         user=UserPublic(**await _user_public(user)),
         is_following=is_following,
@@ -363,33 +438,35 @@ async def list_users(limit: int = 50):
 
 @api_router.post("/users/{username}/follow")
 async def follow_user(username: str, user_id: str = Depends(get_current_user_id)):
-    target = await db.users.find_one({"username": username})
+    target = await _find_user_by_username(username)
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    if target["id"] == user_id:
+    tid = _doc_id(target)
+    if tid == user_id:
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
-    existing = await db.follows.find_one({"follower_id": user_id, "following_id": target["id"]})
+    existing = await db.follows.find_one({"follower_id": user_id, "following_id": tid})
     if existing:
         return {"following": True}
     await db.follows.insert_one({
         "follower_id": user_id,
-        "following_id": target["id"],
+        "following_id": tid,
         "created_at": now_iso(),
     })
-    await db.users.update_one({"id": target["id"]}, {"$inc": {"followers_count": 1}})
-    await db.users.update_one({"id": user_id}, {"$inc": {"following_count": 1}})
+    await db.users.update_one({"$or": [{"id": tid}, {"_id": tid}]}, {"$inc": {"followers_count": 1}})
+    await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$inc": {"following_count": 1}})
     return {"following": True}
 
 
 @api_router.delete("/users/{username}/follow")
 async def unfollow_user(username: str, user_id: str = Depends(get_current_user_id)):
-    target = await db.users.find_one({"username": username})
+    target = await _find_user_by_username(username)
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    res = await db.follows.delete_one({"follower_id": user_id, "following_id": target["id"]})
+    tid = _doc_id(target)
+    res = await db.follows.delete_one({"follower_id": user_id, "following_id": tid})
     if res.deleted_count:
-        await db.users.update_one({"id": target["id"]}, {"$inc": {"followers_count": -1}})
-        await db.users.update_one({"id": user_id}, {"$inc": {"following_count": -1}})
+        await db.users.update_one({"$or": [{"id": tid}, {"_id": tid}]}, {"$inc": {"followers_count": -1}})
+        await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$inc": {"following_count": -1}})
     return {"following": False}
 
 
@@ -397,7 +474,7 @@ async def unfollow_user(username: str, user_id: str = Depends(get_current_user_i
 # Videos
 # ============================================================
 async def _require_premium(user_id: str) -> dict:
-    user = await db.users.find_one({"id": user_id})
+    user = await _find_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     if not await _is_premium(user):
@@ -473,40 +550,48 @@ async def list_following_videos(limit: int = 50, user_id: str = Depends(get_curr
     following_ids = [f["following_id"] for f in follows]
     if not following_ids:
         return []
-    vids = await db.videos.find({"owner_id": {"$in": following_ids}}).sort("created_at", -1).to_list(limit)
+    vids = await db.videos.find(
+        {"$or": [
+            {"owner_id": {"$in": following_ids}},
+            {"user_id": {"$in": following_ids}},
+            {"uploader_id": {"$in": following_ids}},
+        ]}
+    ).sort("created_at", -1).to_list(limit)
     return [VideoPublic(**await _video_public(v)) for v in vids]
 
 
 @api_router.get("/videos/{video_id}", response_model=VideoPublic)
 async def get_video(video_id: str, viewer_id: Optional[str] = Depends(get_optional_user_id)):
-    v = await db.videos.find_one({"id": video_id})
+    v = await db.videos.find_one({"$or": [{"id": video_id}, {"_id": video_id}]})
     if not v:
         raise HTTPException(status_code=404, detail="Video not found")
     # Paywall: only premium subscribers can watch
     if not viewer_id:
         raise HTTPException(status_code=401, detail="Login required")
-    viewer = await db.users.find_one({"id": viewer_id})
+    viewer = await _find_user_by_id(viewer_id)
     if not viewer or not await _is_premium(viewer):
         raise HTTPException(status_code=402, detail="Premium subscription required to watch")
 
     # increment views
-    await db.videos.update_one({"id": video_id}, {"$inc": {"views": 1}})
-    v["views"] = v.get("views", 0) + 1
+    await db.videos.update_one({"$or": [{"id": video_id}, {"_id": video_id}]}, {"$inc": {"views": 1}})
+    v["views"] = (v.get("views") or v.get("view_count") or 0) + 1
     return VideoPublic(**await _video_public(v))
 
 
 @api_router.delete("/videos/{video_id}")
 async def delete_video(video_id: str, user_id: str = Depends(get_current_user_id)):
-    v = await db.videos.find_one({"id": video_id})
+    v = await db.videos.find_one({"$or": [{"id": video_id}, {"_id": video_id}]})
     if not v:
         raise HTTPException(status_code=404, detail="Video not found")
-    if v["owner_id"] != user_id:
+    owner_id = v.get("owner_id") or v.get("user_id") or v.get("uploader_id")
+    if owner_id != user_id:
         raise HTTPException(status_code=403, detail="Not your video")
     try:
-        cloudinary.uploader.destroy(v["public_id"], resource_type="video")
+        if v.get("public_id"):
+            cloudinary.uploader.destroy(v["public_id"], resource_type="video")
     except Exception:
         logger.warning("Cloudinary destroy failed for %s", v.get("public_id"))
-    await db.videos.delete_one({"id": video_id})
+    await db.videos.delete_one({"$or": [{"id": video_id}, {"_id": video_id}]})
     return {"deleted": True}
 
 
@@ -520,7 +605,7 @@ def _get_stripe(host_url: str) -> StripeCheckout:
 
 @api_router.post("/payments/checkout", response_model=CheckoutCreateResponse)
 async def create_checkout(req: CheckoutCreateRequest, request: Request, user_id: str = Depends(get_current_user_id)):
-    user = await db.users.find_one({"id": user_id})
+    user = await _find_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -578,7 +663,7 @@ async def get_checkout_status(session_id: str, request: Request, user_id: str = 
 
     if s.payment_status == "paid" and not already_processed:
         # Grant 30 days premium
-        user = await db.users.find_one({"id": user_id})
+        user = await _find_user_by_id(user_id)
         if user:
             current_until_str = user.get("premium_until")
             base_dt = datetime.now(timezone.utc)
@@ -590,14 +675,14 @@ async def get_checkout_status(session_id: str, request: Request, user_id: str = 
                 except Exception:
                     pass
             new_until = (base_dt + timedelta(days=PREMIUM_DURATION_DAYS)).isoformat()
-            await db.users.update_one({"id": user_id}, {"$set": {"premium_until": new_until}})
+            await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$set": {"premium_until": new_until}})
 
         await db.payment_transactions.update_one(
             {"session_id": session_id},
             {"$set": {"payment_status": "paid", "paid_at": now_iso()}},
         )
 
-    user = await db.users.find_one({"id": user_id})
+    user = await _find_user_by_id(user_id)
     return CheckoutStatusResponse(
         status=s.status,
         payment_status=s.payment_status,
@@ -624,7 +709,7 @@ async def stripe_webhook(request: Request):
         txn = await db.payment_transactions.find_one({"session_id": event.session_id})
         if txn and txn.get("payment_status") != "paid":
             user_id = txn.get("user_id")
-            user = await db.users.find_one({"id": user_id})
+            user = await _find_user_by_id(user_id)
             if user:
                 current_until_str = user.get("premium_until")
                 base_dt = datetime.now(timezone.utc)
@@ -636,7 +721,7 @@ async def stripe_webhook(request: Request):
                     except Exception:
                         pass
                 new_until = (base_dt + timedelta(days=PREMIUM_DURATION_DAYS)).isoformat()
-                await db.users.update_one({"id": user_id}, {"$set": {"premium_until": new_until}})
+                await db.users.update_one({"$or": [{"id": user_id}, {"_id": user_id}]}, {"$set": {"premium_until": new_until}})
             await db.payment_transactions.update_one(
                 {"session_id": event.session_id},
                 {"$set": {"payment_status": "paid", "paid_at": now_iso()}},
