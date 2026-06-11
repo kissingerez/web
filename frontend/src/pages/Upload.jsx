@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Upload as UploadIcon, Lock, CheckCircle2 as Crown, Film } from "lucide-react";
 
-const MAX_MB = 2048;
+const MAX_GB = 25;
+const MAX_BYTES = MAX_GB * 1024 * 1024 * 1024;
+const MAX_MINUTES = 180;
 
 const Upload = () => {
   const { user, loading: authLoading } = useAuth();
@@ -24,8 +26,8 @@ const Upload = () => {
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return setFile(null);
-    if (f.size > MAX_MB * 1024 * 1024) {
-      setError(`File exceeds ${MAX_MB}MB (${(MAX_MB/1024).toFixed(0)}GB) limit`);
+    if (f.size > MAX_BYTES) {
+      setError(`File exceeds the ${MAX_GB}GB limit`);
       setFile(null);
       return;
     }
@@ -98,7 +100,7 @@ const Upload = () => {
   return (
     <div data-testid="upload-page" className="max-w-2xl mx-auto">
       <h1 className="text-4xl font-extrabold tracking-tight text-[#0F172A]">Upload a clip</h1>
-      <p className="mt-2 text-[#475569]">Up to {MAX_MB} MB · mp4, webm, mov, ogg, mkv</p>
+      <p className="mt-2 text-[#475569]">Up to {MAX_GB} GB · up to {MAX_MINUTES} minutes · mp4, webm, mov, ogg, mkv</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <div>
@@ -120,7 +122,7 @@ const Upload = () => {
             <span className="text-sm text-[#475569]">
               {file ? <span className="font-medium text-[#0F172A]">{file.name}</span> : "Click to choose a video"}
             </span>
-            <span className="text-xs text-[#94A3B8]">{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `Max ${MAX_MB} MB`}</span>
+            <span className="text-xs text-[#94A3B8]">{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `Max ${MAX_GB} GB / ${MAX_MINUTES} min`}</span>
             <input id="file" type="file" data-testid="upload-file-input" accept="video/*" className="hidden" onChange={handleFile} />
           </label>
         </div>

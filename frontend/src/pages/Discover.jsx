@@ -2,9 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/context/AuthContext";
-import { Crown as _Crown, CheckCircle2, PlayCircle } from "lucide-react";
-const Crown = CheckCircle2;
-import { Link } from "react-router-dom";
+import { PlayCircle } from "lucide-react";
 
 const Discover = () => {
   const { user } = useAuth();
@@ -21,20 +19,6 @@ const Discover = () => {
 
   return (
     <div data-testid="discover-page" className="space-y-10">
-      <section className="fade-up">
-        <div className="flex items-end justify-end gap-6 flex-wrap">
-          {!user?.is_premium && (
-            <Link
-              to="/billing"
-              data-testid="hero-subscribe-btn"
-              className="hidden sm:inline-flex items-center gap-2 brand-cta rounded-md px-5 py-3 text-sm"
-            >
-              <Crown size={16} /> Become a Member · $0.99
-            </Link>
-          )}
-        </div>
-      </section>
-
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
           {Array.from({ length: 8 }).map((_, i) => (

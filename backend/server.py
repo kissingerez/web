@@ -387,7 +387,7 @@ async def upload_video(
         "mime_type": file.content_type or "video/mp4",
         "no_ai_confirmed": "true",
     }
-    r = await http_client().post("/api/videos", headers=headers, data=data, files=files, timeout=httpx.Timeout(600.0, connect=10.0))
+    r = await http_client().post("/api/videos", headers=headers, data=data, files=files, timeout=httpx.Timeout(7200.0, connect=10.0))
     if r.status_code >= 400:
         try:
             body = r.json()
