@@ -47,17 +47,26 @@ const Profile = () => {
   return (
     <div data-testid="profile-page" className="space-y-10">
       <header className="flex flex-col sm:flex-row sm:items-end gap-6 fade-up">
-        <div className="w-24 h-24 rounded-lg bg-[#DCEEFB] border border-[#BFE0F5] text-[#0B5C8C] flex items-center justify-center text-3xl font-bold">
-          {user.username?.[0]?.toUpperCase()}
-        </div>
+        {user.avatar_url ? (
+          <img src={user.avatar_url} alt={user.display_name || user.username}
+               className="w-24 h-24 rounded-lg object-cover border border-[#E2E8F0] bg-[#F1F5F9]"
+               onError={(e)=>{e.target.style.display="none";}}/>
+        ) : (
+          <div className="w-24 h-24 rounded-lg bg-[#DCEEFB] border border-[#89CFF0] text-[#0A1929] flex items-center justify-center text-3xl font-bold">
+            {(user.display_name || user.username)?.[0]?.toUpperCase()}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#0F172A]" data-testid="profile-username">@{user.username}</h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#0F172A]" data-testid="profile-displayname">
+              {user.display_name || user.username}
+            </h1>
             {user.is_premium && (
               <span className="brand-chip px-2.5 py-0.5 text-xs font-semibold rounded-md uppercase">Member</span>
             )}
           </div>
-          <p className="mt-2 text-[#475569] text-sm flex gap-5">
+          <p className="text-sm text-[#64748B] mt-1" data-testid="profile-username">@{user.username}</p>
+          <p className="mt-3 text-[#475569] text-sm flex gap-5">
             <span data-testid="profile-followers"><b className="text-[#0F172A]">{user.followers_count}</b> followers</span>
             <span data-testid="profile-following"><b className="text-[#0F172A]">{user.following_count}</b> following</span>
             <span><b className="text-[#0F172A]">{videos.length}</b> clips</span>

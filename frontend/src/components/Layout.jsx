@@ -17,7 +17,7 @@ const Sidebar = () => {
 
   return (
     <aside className="hidden lg:flex flex-col w-60 shrink-0 h-screen sticky top-0 border-r border-[#E2E8F0] px-5 py-7 bg-white">
-      <Link to="/" data-testid="logo-link" className="brand-mark text-3xl mb-10 text-[#2B8FCA] hover:text-[#0B5C8C] transition-colors">
+      <Link to="/" data-testid="logo-link" className="brand-mark text-3xl mb-10 text-[#89CFF0] hover:text-[#74C4ED] transition-colors">
         WeClips
       </Link>
 
@@ -42,12 +42,20 @@ const Sidebar = () => {
         )}
         {user ? (
           <div className="flex items-center gap-3 pt-1">
-            <div className="w-9 h-9 rounded-full bg-[#DCEEFB] text-[#0B5C8C] flex items-center justify-center font-semibold border border-[#BFE0F5]">
-              {user.username?.[0]?.toUpperCase()}
-            </div>
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt={user.display_name || user.username}
+                   className="w-9 h-9 rounded-full object-cover border border-[#E2E8F0] bg-[#F1F5F9]"
+                   onError={(e) => { e.target.style.display = "none"; }}/>
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-[#DCEEFB] text-[#0A1929] flex items-center justify-center font-semibold border border-[#89CFF0]">
+                {(user.display_name || user.username)?.[0]?.toUpperCase()}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-[#0F172A]" data-testid="sidebar-username">@{user.username}</p>
-              <p className="text-xs text-[#64748B] truncate">{user.is_premium ? "Member" : "Free"}</p>
+              <p className="text-sm font-semibold truncate text-[#0F172A]" data-testid="sidebar-username">
+                {user.display_name || user.username}
+              </p>
+              <p className="text-xs text-[#64748B] truncate">@{user.username}</p>
             </div>
             <button
               onClick={() => { logout(); navigate("/"); }}
@@ -98,7 +106,7 @@ const MobileBottomNav = () => {
 
 const MobileHeader = () => (
   <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between">
-    <Link to="/" data-testid="mobile-logo" className="brand-mark text-2xl text-[#2B8FCA]">
+    <Link to="/" data-testid="mobile-logo" className="brand-mark text-2xl text-[#89CFF0]">
       WeClips
     </Link>
   </header>

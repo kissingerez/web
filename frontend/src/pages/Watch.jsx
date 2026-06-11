@@ -101,12 +101,20 @@ const Watch = () => {
 
         <div className="flex items-center gap-3">
           <Link to={`/u/${video.owner_username}`} className="flex items-center gap-3 group" data-testid="watch-creator-link">
-            <div className="w-11 h-11 rounded-full bg-[#DCEEFB] border border-[#BFE0F5] text-[#0B5C8C] flex items-center justify-center font-semibold">
-              {video.owner_username?.[0]?.toUpperCase()}
-            </div>
+            {video.owner_avatar ? (
+              <img src={video.owner_avatar} alt={video.owner_display_name || video.owner_username}
+                   className="w-11 h-11 rounded-full object-cover border border-[#E2E8F0]"
+                   onError={(e)=>{e.target.style.display="none";}}/>
+            ) : (
+              <div className="w-11 h-11 rounded-full bg-[#DCEEFB] border border-[#89CFF0] text-[#0A1929] flex items-center justify-center font-semibold">
+                {(video.owner_display_name || video.owner_username)?.[0]?.toUpperCase()}
+              </div>
+            )}
             <div>
-              <p className="font-semibold text-[#0F172A] group-hover:text-[#2B8FCA]">@{video.owner_username}</p>
-              <p className="text-xs text-[#64748B]">Creator</p>
+              <p className="font-semibold text-[#0F172A] group-hover:text-[#2B8FCA]">
+                {video.owner_display_name || video.owner_username}
+              </p>
+              <p className="text-xs text-[#64748B]">@{video.owner_username}</p>
             </div>
           </Link>
           {isOwner && (

@@ -32,6 +32,8 @@ function timeAgo(iso) {
 const VideoCard = ({ video, locked = false }) => {
   const thumb = video.thumbnail_url || PLACEHOLDER_THUMB;
   const duration = formatDuration(video.duration);
+  const displayName = video.owner_display_name || video.owner_username || "Creator";
+  const handle = video.owner_username || "";
 
   return (
     <Link
@@ -62,14 +64,26 @@ const VideoCard = ({ video, locked = false }) => {
         )}
       </div>
       <div className="mt-3 flex gap-3">
-        <div className="w-9 h-9 rounded-full bg-[#DCEEFB] text-[#0B5C8C] flex items-center justify-center text-sm font-semibold shrink-0 border border-[#BFE0F5]">
-          {video.owner_username?.[0]?.toUpperCase() || "?"}
-        </div>
+        {video.owner_avatar ? (
+          <img
+            src={video.owner_avatar}
+            alt={displayName}
+            className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E8F0] bg-[#F1F5F9]"
+            onError={(e) => { e.target.style.display = "none"; }}
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-[#DCEEFB] text-[#0A1929] flex items-center justify-center text-sm font-semibold shrink-0 border border-[#89CFF0]">
+            {displayName?.[0]?.toUpperCase() || "?"}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold text-[0.97rem] leading-snug line-clamp-2 text-[#0F172A] group-hover:text-[#2B8FCA] transition-colors">
             {video.title}
           </h3>
-          <p className="text-xs text-[#64748B] mt-1">@{video.owner_username}</p>
+          <p className="text-xs text-[#475569] mt-1 font-medium">
+            {displayName}
+            {handle && <span className="text-[#94A3B8] font-normal"> · @{handle}</span>}
+          </p>
           <p className="text-[11px] text-[#94A3B8] mt-0.5 flex items-center gap-1.5">
             <Eye size={11}/> {formatViews(video.views)} · {timeAgo(video.created_at)}
           </p>

@@ -121,6 +121,7 @@ def mobile_video_to_web(v: dict) -> dict:
         "duration": v.get("duration_sec"),
         "owner_id": creator_id,
         "owner_username": v.get("creator_username") or v.get("creator_name"),
+        "owner_display_name": v.get("creator_name") or v.get("creator_username"),
         "owner_avatar": f"{MOBILE_BACKEND_URL}/api/users/{creator_id}/avatar" if creator_id else None,
         "views": v.get("views", 0),
         "likes": v.get("likes", 0),
