@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import Comments from "@/components/Comments";
 import ReportDialog from "@/components/ReportDialog";
 import { Button } from "@/components/ui/button";
-import { Lock, CheckCircle2 as Crown, Trash2, Eye, Heart, Flag } from "lucide-react";
+import { Lock, CheckCircle2 as Crown, Trash2, Eye, Heart, Flag, Share2 } from "lucide-react";
 
 const Watch = () => {
   const { id } = useParams();
@@ -19,6 +19,7 @@ const Watch = () => {
   const [paywall, setPaywall] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(0);
+  const [shares, setShares] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ const Watch = () => {
       .then((res) => {
         setVideo(res.data);
         setLikes(res.data.likes || 0);
+        setShares(res.data.shares || 0);
         setPaywall(false);
       })
       .catch((e) => {
@@ -60,6 +62,23 @@ const Watch = () => {
       if (r.data?.likes != null) setLikes(r.data.likes);
     } catch (e) {
       toast.error(errMsg(e, "Could not like clip"));
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/api/share/${id}`;
+    api.post(`/videos/${id}/share`)
+      .then((r) => { if (r.data?.shares != null) setShares(r.data.shares); })
+      .catch(() => {});
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: video.title, text: `Watch “${video.title}” on WeClips`, url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied! Send it to a friend.");
+      }
+    } catch {
+      // user closed the share sheet — no-op
     }
   };
 
@@ -107,6 +126,14 @@ const Watch = () => {
             <span className="inline-flex items-center gap-1"><Eye size={14}/> {video.views} views</span>
             <span>·</span>
             <span>{timeAgo(video.created_at)}</span>
+            {shares > 0 && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1" data-testid="watch-share-count">
+                  <Share2 size={13}/> {shares} share{shares === 1 ? "" : "s"}
+                </span>
+              </>
+            )}
           </p>
         </div>
 
@@ -121,6 +148,14 @@ const Watch = () => {
             }`}
           >
             <Heart size={16} fill={liked ? "currentColor" : "none"} /> {likes}
+          </button>
+
+          <button
+            onClick={handleShare}
+            data-testid="watch-share-btn"
+            className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-md border border-[#E2E8F0] text-sm font-semibold text-[#475569] hover:border-[#89CFF0] hover:text-[#0B5C8C] transition-colors"
+          >
+            <Share2 size={16} /> Share
           </button>
 
           <Link to={`/u/${video.owner_username}`} className="flex items-center gap-3 group" data-testid="watch-creator-link">

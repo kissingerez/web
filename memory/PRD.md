@@ -26,6 +26,7 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 - **Likes & comments**: like button on Watch; comments list/add/delete/like (members only, mirrors upstream 402)
 - **Safety**: report video, report user, block/unblock users (blocked list in Settings)
 - **Notifications**: `/notifications` page, unread badge in sidebar + mobile header, mark-read
+- **Share clip (2026-06-11)**: Share button on Watch page — native share sheet on mobile, copy-link on desktop; share link `/api/share/{video_id}` serves Open Graph/Twitter preview tags (title, creator, thumbnail) for rich previews in iMessage/WhatsApp/FB, then redirects humans to `/watch/{id}`; share counter stored in local Mongo (`share_counts`), shown on Watch meta row and included in `GET /api/videos/{id}` as `shares`
 - **Legal & disclaimers**: Terms of Service + Privacy Policy proxied via `GET /api/legal/{terms|privacy}`; links in sidebar footer + Settings; support email (support@weclips.app) from `/api/config`
 - **Danger zone**: log out, delete account (upstream deletion_pending)
 

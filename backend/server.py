@@ -7,6 +7,7 @@ Stripe checkout stays local; on success we call the mobile backend's
 /api/subscription/dev-activate to grant subscription in the mobile DB.
 """
 import os
+import html as html_lib
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -352,6 +353,9 @@ async def get_video(video_id: str, creds: Optional[HTTPAuthorizationCredentials]
             raise
     else:
         raise HTTPException(status_code=401, detail="Login required")
+    # attach local web share count
+    sc = await db.share_counts.find_one({"video_id": video_id})
+    out["shares"] = sc["count"] if sc else 0
     return out
 
 
@@ -396,6 +400,83 @@ async def upload_video(
 # ============================================================
 # Video social actions (proxied)
 # ============================================================
+@api_router.post("/videos/{video_id}/share")
+async def track_share(video_id: str):
+    """Increment the web share counter for a clip (stored locally)."""
+    res = await db.share_counts.find_one_and_update(
+        {"video_id": video_id},
+        {"$inc": {"count": 1}, "$setOnInsert": {"video_id": video_id, "created_at": now_iso()}},
+        upsert=True,
+        return_document=True,
+    )
+    return {"shares": res["count"] if res else 1}
+
+
+async def _public_video_meta(video_id: str) -> Optional[dict]:
+    """Best-effort public metadata lookup (detail endpoint requires auth upstream)."""
+    try:
+        r = await http_client().get("/api/videos", params={"limit": 200})
+        if r.status_code < 400:
+            for v in r.json() or []:
+                if v.get("id") == video_id:
+                    return v
+    except Exception:
+        pass
+    return None
+
+
+@api_router.get("/share/{video_id}")
+async def share_page(video_id: str, request: Request):
+    """Rich link-preview page: OG/Twitter tags for crawlers, instant redirect for humans."""
+    v = await _public_video_meta(video_id)
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    proto = request.headers.get("x-forwarded-proto", "https").split(",")[0].strip()
+    origin = f"{proto}://{host}" if host else str(request.base_url).rstrip("/")
+    watch_url = f"/watch/{video_id}"
+    share_url = f"{origin}/api/share/{video_id}"
+
+    title = html_lib.escape(v.get("title") or "Watch this clip" if v else "Watch this clip")
+    creator = html_lib.escape((v or {}).get("creator_name") or "")
+    desc = html_lib.escape(
+        f"A clip by {creator} on WeClips — ad-free, Christian-friendly video. $1/month. No AI. No chaos."
+        if creator else
+        "WeClips — ad-free, Christian-friendly video. $1/month. No AI. No chaos."
+    )
+    thumb = f"{MOBILE_BACKEND_URL}/api/videos/{video_id}/thumbnail" if (v or {}).get("has_thumbnail") else None
+
+    image_tags = ""
+    if thumb:
+        image_tags = (
+            f'<meta property="og:image" content="{thumb}">'
+            f'<meta name="twitter:image" content="{thumb}">'
+            '<meta name="twitter:card" content="summary_large_image">'
+        )
+    else:
+        image_tags = '<meta name="twitter:card" content="summary">'
+
+    page = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{title} · WeClips</title>
+<meta property="og:site_name" content="WeClips">
+<meta property="og:type" content="video.other">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:url" content="{share_url}">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{desc}">
+{image_tags}
+<meta http-equiv="refresh" content="0;url={watch_url}">
+<script>window.location.replace({watch_url!r});</script>
+</head>
+<body style="font-family:'Comic Sans MS','Comic Sans',sans-serif;background:#F4FAFF;color:#0F172A;text-align:center;padding-top:80px;">
+<p>Taking you to the clip… <a href="{watch_url}">tap here</a> if nothing happens.</p>
+</body>
+</html>"""
+    return HTMLResponse(content=page)
+
+
 @api_router.post("/videos/{video_id}/like")
 async def toggle_video_like(video_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
     if not creds:
