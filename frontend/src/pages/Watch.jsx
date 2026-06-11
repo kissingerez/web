@@ -1,20 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { errMsg, timeAgo } from "@/lib/format";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import Comments from "@/components/Comments";
+import ReportDialog from "@/components/ReportDialog";
 import { Button } from "@/components/ui/button";
-import { Lock, CheckCircle2 as Crown, Trash2, Eye } from "lucide-react";
-
-function timeAgo(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  return `${Math.floor(diff / 2592000)}mo ago`;
-}
+import { Lock, CheckCircle2 as Crown, Trash2, Eye, Heart, Flag } from "lucide-react";
 
 const Watch = () => {
   const { id } = useParams();
@@ -24,19 +17,26 @@ const Watch = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [paywall, setPaywall] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(0);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
     setLoading(true);
     api.get(`/videos/${id}`)
-      .then((res) => { setVideo(res.data); setPaywall(false); })
+      .then((res) => {
+        setVideo(res.data);
+        setLikes(res.data.likes || 0);
+        setPaywall(false);
+      })
       .catch((e) => {
         if (e?.response?.status === 401) {
           navigate("/auth", { state: { from: `/watch/${id}` } });
         } else if (e?.response?.status === 402) {
           setPaywall(true);
         } else {
-          setError(e?.response?.data?.detail || "Failed to load video");
+          setError(errMsg(e, "Failed to load video"));
         }
       })
       .finally(() => setLoading(false));
@@ -48,7 +48,18 @@ const Watch = () => {
       await api.delete(`/videos/${id}`);
       navigate("/");
     } catch (e) {
-      alert(e?.response?.data?.detail || "Delete failed");
+      toast.error(errMsg(e, "Delete failed"));
+    }
+  };
+
+  const toggleLike = async () => {
+    if (!user) { navigate("/auth"); return; }
+    try {
+      const r = await api.post(`/videos/${id}/like`);
+      setLiked(!!r.data?.liked);
+      if (r.data?.likes != null) setLikes(r.data.likes);
+    } catch (e) {
+      toast.error(errMsg(e, "Could not like clip"));
     }
   };
 
@@ -99,7 +110,19 @@ const Watch = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={toggleLike}
+            data-testid="watch-like-btn"
+            className={`inline-flex items-center gap-1.5 px-3.5 h-10 rounded-md border text-sm font-semibold transition-colors ${
+              liked
+                ? "border-[#FCA5A5] bg-[#FEE2E2] text-[#DC2626]"
+                : "border-[#E2E8F0] text-[#475569] hover:border-[#FCA5A5] hover:text-[#DC2626]"
+            }`}
+          >
+            <Heart size={16} fill={liked ? "currentColor" : "none"} /> {likes}
+          </button>
+
           <Link to={`/u/${video.owner_username}`} className="flex items-center gap-3 group" data-testid="watch-creator-link">
             {video.owner_avatar ? (
               <img src={video.owner_avatar} alt={video.owner_display_name || video.owner_username}
@@ -117,7 +140,8 @@ const Watch = () => {
               <p className="text-xs text-[#64748B]">@{video.owner_username}</p>
             </div>
           </Link>
-          {isOwner && (
+
+          {isOwner ? (
             <button
               onClick={handleDelete}
               data-testid="watch-delete-btn"
@@ -126,6 +150,17 @@ const Watch = () => {
             >
               <Trash2 size={18} />
             </button>
+          ) : (
+            user && (
+              <button
+                onClick={() => setReportOpen(true)}
+                data-testid="watch-report-btn"
+                className="p-2 rounded-md text-[#94A3B8] hover:bg-[#FEF3C7] hover:text-[#B45309]"
+                aria-label="Report clip"
+              >
+                <Flag size={17} />
+              </button>
+            )
           )}
         </div>
       </div>
@@ -135,6 +170,15 @@ const Watch = () => {
           {video.description}
         </div>
       )}
+
+      <Comments videoId={id} />
+
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title="Report this clip"
+        endpoint={`/videos/${id}/report`}
+      />
     </div>
   );
 };

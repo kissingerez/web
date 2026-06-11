@@ -17,7 +17,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
@@ -129,6 +129,21 @@ def mobile_video_to_web(v: dict) -> dict:
     }
 
 
+def mobile_lite_user_to_web(u: dict) -> dict:
+    """Map UserSearchResult / follower-list entries to the web shape."""
+    if not u:
+        return {}
+    uid = u.get("id") or ""
+    return {
+        "id": uid,
+        "username": u.get("username") or "",
+        "display_name": u.get("display_name"),
+        "avatar_url": f"{MOBILE_BACKEND_URL}/api/users/{uid}/avatar" if u.get("has_avatar") else None,
+        "bio": u.get("bio"),
+        "followers_count": u.get("followers", 0),
+    }
+
+
 # ============================================================
 # Pydantic request models (matching the web frontend)
 # ============================================================
@@ -154,6 +169,28 @@ class ResetPasswordRequest(BaseModel):
 
 class CheckoutCreateRequest(BaseModel):
     origin_url: str
+
+
+class UpdateMeRequest(BaseModel):
+    display_name: Optional[str] = Field(default=None, min_length=1, max_length=40)
+    username: Optional[str] = Field(default=None, min_length=3, max_length=20)
+    bio: Optional[str] = Field(default=None, max_length=300)
+    email: Optional[EmailStr] = None
+    followers_hidden: Optional[bool] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = Field(default=None, min_length=6)
+
+
+class AvatarRequest(BaseModel):
+    avatar_base64: str = Field(min_length=20)
+
+
+class CommentRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class ReportRequest(BaseModel):
+    reason: str = Field(min_length=2, max_length=500)
 
 
 # ============================================================
@@ -234,6 +271,37 @@ async def forgot_password(req: ForgotPasswordRequest, request: Request):
 async def reset_password(req: ResetPasswordRequest):
     return await _proxy_json("POST", "/api/auth/reset-password",
                               json_body={"token": req.token, "new_password": req.new_password})
+
+
+@api_router.patch("/auth/me")
+async def update_me(req: UpdateMeRequest, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    body = req.model_dump(exclude_none=True)
+    data = await _proxy_json("PATCH", "/api/auth/me", creds=creds, json_body=body)
+    return mobile_user_to_web(data)
+
+
+@api_router.put("/auth/me/avatar")
+async def set_avatar(req: AvatarRequest, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("PUT", "/api/auth/me/avatar", creds=creds,
+                              json_body={"avatar_base64": req.avatar_base64})
+
+
+@api_router.delete("/auth/me/avatar")
+async def delete_avatar(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("DELETE", "/api/auth/me/avatar", creds=creds)
+
+
+@api_router.delete("/auth/me")
+async def delete_account(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("DELETE", "/api/auth/me", creds=creds)
 
 
 # ============================================================
@@ -326,6 +394,55 @@ async def upload_video(
 
 
 # ============================================================
+# Video social actions (proxied)
+# ============================================================
+@api_router.post("/videos/{video_id}/like")
+async def toggle_video_like(video_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("POST", f"/api/videos/{video_id}/like", creds=creds)
+
+
+@api_router.get("/videos/{video_id}/comments")
+async def list_comments(video_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    return await _proxy_json("GET", f"/api/videos/{video_id}/comments", creds=creds)
+
+
+@api_router.post("/videos/{video_id}/comments")
+async def add_comment(video_id: str, req: CommentRequest,
+                      creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("POST", f"/api/videos/{video_id}/comments", creds=creds,
+                              json_body={"text": req.text})
+
+
+@api_router.delete("/videos/{video_id}/comments/{comment_id}")
+async def delete_comment(video_id: str, comment_id: str,
+                          creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("DELETE", f"/api/videos/{video_id}/comments/{comment_id}", creds=creds)
+
+
+@api_router.post("/videos/{video_id}/comments/{comment_id}/like")
+async def toggle_comment_like(video_id: str, comment_id: str,
+                               creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("POST", f"/api/videos/{video_id}/comments/{comment_id}/like", creds=creds)
+
+
+@api_router.post("/videos/{video_id}/report")
+async def report_video(video_id: str, req: ReportRequest,
+                        creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("POST", f"/api/videos/{video_id}/report", creds=creds,
+                              json_body={"reason": req.reason})
+
+
+# ============================================================
 # Users / Follow (proxied with username→id resolution)
 # ============================================================
 async def _resolve_username(username: str, creds=None) -> Optional[dict]:
@@ -338,6 +455,58 @@ async def _resolve_username(username: str, creds=None) -> Optional[dict]:
         if (u.get("username") or "").lower() == username.lower():
             return u
     return res[0]
+
+
+@api_router.get("/users/search")
+async def search_users(q: str, limit: int = 20,
+                        creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    res = await _proxy_json("GET", "/api/users/search", creds=creds, params={"q": q, "limit": limit})
+    return [mobile_lite_user_to_web(u) for u in (res or [])]
+
+
+@api_router.get("/users/me/blocks")
+async def list_blocks(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    res = await _proxy_json("GET", "/api/users/me/blocks/list", creds=creds)
+    return [mobile_lite_user_to_web(u) for u in (res or [])]
+
+
+@api_router.get("/users/by-id/{user_id}/followers")
+async def get_followers(user_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    res = await _proxy_json("GET", f"/api/users/{user_id}/followers", creds=creds)
+    return [mobile_lite_user_to_web(u) for u in (res or [])]
+
+
+@api_router.get("/users/by-id/{user_id}/following")
+async def get_following(user_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    res = await _proxy_json("GET", f"/api/users/{user_id}/following", creds=creds)
+    return [mobile_lite_user_to_web(u) for u in (res or [])]
+
+
+@api_router.post("/users/by-id/{user_id}/block")
+async def block_user(user_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("POST", f"/api/users/{user_id}/block", creds=creds)
+
+
+@api_router.delete("/users/by-id/{user_id}/block")
+async def unblock_user(user_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("DELETE", f"/api/users/{user_id}/block", creds=creds)
+
+
+@api_router.post("/users/by-id/{user_id}/report")
+async def report_user(user_id: str, req: ReportRequest,
+                       creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("POST", f"/api/users/{user_id}/report", creds=creds,
+                              json_body={"reason": req.reason})
 
 
 @api_router.get("/users/{username}")
@@ -383,6 +552,50 @@ async def unfollow_user(username: str, creds: Optional[HTTPAuthorizationCredenti
         raise HTTPException(status_code=404, detail="User not found")
     await _proxy_json("DELETE", f"/api/users/{found['id']}/follow", creds=creds)
     return {"following": False}
+
+
+# ============================================================
+# Notifications / Config / Legal (proxied)
+# ============================================================
+@api_router.get("/notifications")
+async def list_notifications(limit: int = 50,
+                              creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    res = await _proxy_json("GET", "/api/notifications", creds=creds, params={"limit": limit})
+    out = []
+    for n in (res or []):
+        actor_id = n.get("actor_id") or ""
+        n["actor_avatar"] = f"{MOBILE_BACKEND_URL}/api/users/{actor_id}/avatar" if n.get("actor_has_avatar") else None
+        out.append(n)
+    return out
+
+
+@api_router.post("/notifications/mark-read")
+async def mark_notifications_read(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+    return await _proxy_json("POST", "/api/notifications/mark-read", creds=creds)
+
+
+@api_router.get("/notifications/unread-count")
+async def unread_count(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    if not creds:
+        return {"count": 0}
+    return await _proxy_json("GET", "/api/notifications/unread-count", creds=creds)
+
+
+@api_router.get("/config")
+async def get_config():
+    return await _proxy_json("GET", "/api/config")
+
+
+@api_router.get("/legal/{page}")
+async def legal_page(page: str):
+    if page not in ("terms", "privacy"):
+        raise HTTPException(status_code=404, detail="Not found")
+    r = await http_client().get(f"/api/legal/{page}")
+    return HTMLResponse(content=r.text, status_code=r.status_code)
 
 
 # ============================================================

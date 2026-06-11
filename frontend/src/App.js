@@ -13,6 +13,9 @@ import Auth from "@/pages/Auth";
 import Billing from "@/pages/Billing";
 import Forgot from "@/pages/Forgot";
 import Reset from "@/pages/Reset";
+import Search from "@/pages/Search";
+import Settings from "@/pages/Settings";
+import Notifications from "@/pages/Notifications";
 import { BillingSuccess, BillingCancel } from "@/pages/BillingResult";
 
 function App() {
@@ -26,6 +29,9 @@ function App() {
           <Route path="/billing/success" element={<Layout><BillingSuccess /></Layout>} />
           <Route path="/billing/cancel" element={<Layout><BillingCancel /></Layout>} />
           <Route path="/" element={<Layout><Discover /></Layout>} />
+          <Route path="/search" element={<Layout><Search /></Layout>} />
+          <Route path="/settings" element={<Layout><Settings /></Layout>} />
+          <Route path="/notifications" element={<Layout><Notifications /></Layout>} />
           <Route path="/following" element={<Layout><Following /></Layout>} />
           <Route path="/upload" element={<Layout><Upload /></Layout>} />
           <Route path="/watch/:id" element={<Layout><Watch /></Layout>} />
