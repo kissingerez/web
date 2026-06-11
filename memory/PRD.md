@@ -38,6 +38,9 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 - Misc: GET /config, GET /legal/{page}
 - Payments: POST /payments/checkout, GET /payments/checkout/{session_id}, POST /payments/webhook/stripe
 
+### 2026-06-11 — Bug fix: own Profile tab "User not found"
+- Root cause: upstream `/api/users/search` excludes the requesting user, so username→id resolution failed for one's own profile. Fixed `_resolve_username` to check `/api/auth/me` first (same as mobile app's Profile tab); also removed unsafe fuzzy fallback (now exact username match only). Frontend Profile redirects to /auth on 401.
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)

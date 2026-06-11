@@ -527,15 +527,22 @@ async def report_video(video_id: str, req: ReportRequest,
 # Users / Follow (proxied with username→id resolution)
 # ============================================================
 async def _resolve_username(username: str, creds=None) -> Optional[dict]:
-    """Map a username to the mobile user record via search."""
+    """Map a username to the mobile user record.
+
+    Upstream search EXCLUDES the requesting user, so check /auth/me first
+    (this is how the mobile app loads its own Profile tab)."""
+    if creds:
+        try:
+            me = await _proxy_json("GET", "/api/auth/me", creds=creds)
+            if (me.get("username") or "").lower() == username.lower():
+                return me
+        except HTTPException:
+            pass
     res = await _proxy_json("GET", "/api/users/search", creds=creds, params={"q": username})
-    if not res:
-        return None
-    # exact match first
-    for u in res:
+    for u in (res or []):
         if (u.get("username") or "").lower() == username.lower():
             return u
-    return res[0]
+    return None
 
 
 @api_router.get("/users/search")

@@ -28,7 +28,13 @@ const Profile = () => {
     setLoading(true);
     api.get(`/users/${username}`)
       .then((r) => setData(r.data))
-      .catch((e) => setError(errMsg(e, "User not found")))
+      .catch((e) => {
+        if (e?.response?.status === 401) {
+          navigate("/auth", { state: { from: `/u/${username}` } });
+          return;
+        }
+        setError(errMsg(e, "User not found"));
+      })
       .finally(() => setLoading(false));
   };
 
