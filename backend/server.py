@@ -605,16 +605,23 @@ async def get_user_profile(username: str, creds: Optional[HTTPAuthorizationCrede
     user_id = found["id"]
     # Get full public record + user's videos
     user = await _proxy_json("GET", f"/api/users/{user_id}", creds=creds)
+    # upstream public record lacks `following`; merge from the resolved record (/auth/me) when available
+    if "following" not in user and "following" in found:
+        user["following"] = found["following"]
     user_web = mobile_user_to_web(user)
     # videos by user
     vids = await _proxy_json("GET", f"/api/users/{user_id}/videos", creds=creds)
     vids_web = [mobile_video_to_web(v) for v in (vids or [])]
-    # is_following
+    # follow-status: authoritative for is_following + live counts
     is_following = False
     if creds:
         try:
             fs = await _proxy_json("GET", f"/api/users/{user_id}/follow-status", creds=creds)
-            is_following = bool(fs.get("is_following"))
+            is_following = bool(fs.get("following"))
+            if fs.get("followers") is not None:
+                user_web["followers_count"] = fs["followers"]
+            if fs.get("following_count") is not None:
+                user_web["following_count"] = fs["following_count"]
         except HTTPException:
             pass
     return {"user": user_web, "is_following": is_following, "videos": vids_web}
