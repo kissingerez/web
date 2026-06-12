@@ -16,6 +16,7 @@ import Reset from "@/pages/Reset";
 import Search from "@/pages/Search";
 import Settings from "@/pages/Settings";
 import Notifications from "@/pages/Notifications";
+import Admin from "@/pages/Admin";
 import { BillingSuccess, BillingCancel } from "@/pages/BillingResult";
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/search" element={<Layout><Search /></Layout>} />
           <Route path="/settings" element={<Layout><Settings /></Layout>} />
           <Route path="/notifications" element={<Layout><Notifications /></Layout>} />
+          <Route path="/admin" element={<Layout><Admin /></Layout>} />
           <Route path="/following" element={<Layout><Following /></Layout>} />
           <Route path="/upload" element={<Layout><Upload /></Layout>} />
           <Route path="/watch/:id" element={<Layout><Watch /></Layout>} />

@@ -220,6 +220,15 @@ class ReportRequest(BaseModel):
     reason: str = Field(min_length=2, max_length=500)
 
 
+class ModActionRequest(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class SuspendRequest(BaseModel):
+    days: int = Field(ge=1, le=365)
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
 # ============================================================
 # App + router
 # ============================================================
@@ -717,6 +726,86 @@ async def legal_page(page: str):
         raise HTTPException(status_code=404, detail="Not found")
     r = await http_client().get(f"/api/legal/{page}")
     return HTMLResponse(content=r.text, status_code=r.status_code)
+
+
+# ============================================================
+# Admin / moderation (founder-only, enforced by upstream)
+# ============================================================
+def _require_creds(creds):
+    if not creds:
+        raise HTTPException(status_code=401, detail="Login required")
+
+
+@api_router.get("/admin/reports")
+async def admin_reports(status: Optional[str] = None, limit: int = 100,
+                         creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    params = {"limit": limit}
+    if status:
+        params["status"] = status
+    res = await _proxy_json("GET", "/api/admin/reports", creds=creds, params=params)
+    for rep in (res or []):
+        thumb = rep.get("video_thumbnail_url")
+        if thumb and thumb.startswith("/"):
+            rep["video_thumbnail_url"] = f"{MOBILE_BACKEND_URL}{thumb}"
+    return res
+
+
+@api_router.get("/admin/reports/summary")
+async def admin_reports_summary(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    return await _proxy_json("GET", "/api/admin/reports/summary", creds=creds)
+
+
+@api_router.post("/admin/reports/{report_id}/dismiss")
+async def admin_dismiss(report_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    return await _proxy_json("POST", f"/api/admin/reports/{report_id}/dismiss", creds=creds)
+
+
+@api_router.post("/admin/reports/{report_id}/delete-content")
+async def admin_delete_content(report_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    return await _proxy_json("POST", f"/api/admin/reports/{report_id}/delete-content", creds=creds)
+
+
+@api_router.post("/admin/reports/{report_id}/warn")
+async def admin_warn(report_id: str, req: ModActionRequest,
+                      creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    return await _proxy_json("POST", f"/api/admin/reports/{report_id}/warn", creds=creds,
+                              json_body={"reason": req.reason})
+
+
+@api_router.post("/admin/reports/{report_id}/ban")
+async def admin_ban(report_id: str, req: ModActionRequest,
+                     creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    return await _proxy_json("POST", f"/api/admin/reports/{report_id}/ban", creds=creds,
+                              json_body={"reason": req.reason})
+
+
+@api_router.post("/admin/reports/{report_id}/suspend")
+async def admin_suspend(report_id: str, req: SuspendRequest,
+                         creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    return await _proxy_json("POST", f"/api/admin/reports/{report_id}/suspend", creds=creds,
+                              json_body={"days": req.days, "reason": req.reason})
+
+
+@api_router.get("/admin/banned-accounts")
+async def admin_banned_accounts(creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    res = await _proxy_json("GET", "/api/admin/banned-accounts", creds=creds)
+    for u in (res or []):
+        u["avatar_url"] = f"{MOBILE_BACKEND_URL}/api/users/{u.get('id')}/avatar" if u.get("has_avatar") else None
+    return res
+
+
+@api_router.post("/admin/users/{user_id}/unban")
+async def admin_unban(user_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    _require_creds(creds)
+    return await _proxy_json("POST", f"/api/admin/users/{user_id}/unban", creds=creds)
 
 
 # ============================================================

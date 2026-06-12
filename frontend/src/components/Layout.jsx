@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   Compass, Users, Upload, User as UserIcon, LogIn, LogOut, CheckCircle2,
-  Search as SearchIcon, Bell, Settings as SettingsIcon,
+  Search as SearchIcon, Bell, Settings as SettingsIcon, Shield,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import api, { API } from "@/lib/api";
@@ -50,6 +50,7 @@ const Sidebar = ({ unread }) => {
         {user && <NavItem to="/notifications" icon={Bell} label="Notifications" testId="nav-notifications" badge={unread} />}
         {user && <NavItem to={`/u/${user.username}`} icon={UserIcon} label="Profile" testId="nav-profile" />}
         {user && <NavItem to="/settings" icon={SettingsIcon} label="Settings" testId="nav-settings" />}
+        {user?.is_founder && <NavItem to="/admin" icon={Shield} label="Moderation" testId="nav-admin" />}
       </nav>
 
       <div className="mt-auto flex flex-col gap-4">

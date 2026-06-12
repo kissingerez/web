@@ -59,6 +59,13 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 - Watch page delete button now shows for video owner OR founder account (`canDelete = isOwner || user.is_founder`); deletion authorization enforced by upstream mobile API (same as mobile app).
 - Bonus fix: `followers_hidden` was missing from the user mapping (Settings toggle always initialized to false) — now mapped.
 
+### 2026-06-12 — Founder moderation panel (/admin)
+- New "Moderation" sidebar item (founder only) → /admin page with Reports + Banned accounts tabs.
+- Reports: shows target (video/user/comment), reason, reporter, target user's warning/ban status; actions: Dismiss, Warn (reason), Suspend (1–365 days + reason), Ban (reason), Delete content. All proxied to upstream /api/admin/* (founder-only, upstream returns 403 otherwise — verified).
+- Banned accounts tab with Unban.
+- A TEST report was filed on "Me and Armin" (reason marked TEST) so the founder can try the panel — dismiss it.
+- NOTE: founder-view rendering not yet verified live (no founder credentials in dev); user to verify as @kissingerez.
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)
