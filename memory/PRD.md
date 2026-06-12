@@ -66,6 +66,10 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 - A TEST report was filed on "Me and Armin" (reason marked TEST) so the founder can try the panel — dismiss it.
 - NOTE: founder-view rendering not yet verified live (no founder credentials in dev); user to verify as @kissingerez.
 
+### 2026-06-12 — Clickable usernames
+- Video cards: creator name/@handle and avatar now link to the creator's profile (thumbnail/title still link to the watch page). Fixed JSX nesting during restructure.
+- Comment authors link to profiles via new id-based route `/p/:userId` (backend `GET /api/users/by-id/{id}/profile`, since comments only carry user_id). Refactored profile logic into shared `_profile_payload()`.
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)

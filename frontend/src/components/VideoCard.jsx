@@ -35,12 +35,9 @@ const VideoCard = ({ video, locked = false }) => {
   const handle = video.owner_username || "";
 
   return (
-    <Link
-      to={`/watch/${video.id}`}
-      data-testid={`video-card-${video.id}`}
-      className="group block fade-up"
-    >
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg thumb-lift bg-[#F1F5F9]">
+    <div data-testid={`video-card-${video.id}`} className="group block fade-up">
+      <Link to={`/watch/${video.id}`} className="block">
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg thumb-lift bg-[#F1F5F9]">
         {showThumb ? (
           <img
             src={video.thumbnail_url}
@@ -71,34 +68,47 @@ const VideoCard = ({ video, locked = false }) => {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </Link>
       <div className="mt-3 flex gap-3">
-        {video.owner_avatar ? (
-          <img
-            src={video.owner_avatar}
-            alt={displayName}
-            className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#E2E8F0] bg-[#F1F5F9]"
-            onError={(e) => { e.target.style.display = "none"; }}
-          />
-        ) : (
-          <div className="w-9 h-9 rounded-full bg-[#DCEEFB] text-[#0A1929] flex items-center justify-center text-sm font-semibold shrink-0 border border-[#89CFF0]">
-            {displayName?.[0]?.toUpperCase() || "?"}
-          </div>
-        )}
+        <Link to={handle ? `/u/${handle}` : `/watch/${video.id}`} className="shrink-0" aria-label={`${displayName}'s profile`}>
+          {video.owner_avatar ? (
+            <img
+              src={video.owner_avatar}
+              alt={displayName}
+              className="w-9 h-9 rounded-full object-cover border border-[#E2E8F0] bg-[#F1F5F9]"
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-[#DCEEFB] text-[#0A1929] flex items-center justify-center text-sm font-semibold border border-[#89CFF0]">
+              {displayName?.[0]?.toUpperCase() || "?"}
+            </div>
+          )}
+        </Link>
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-[0.97rem] leading-snug line-clamp-2 text-[#0F172A] group-hover:text-[#2B8FCA] transition-colors">
-            {video.title}
-          </h3>
-          <p className="text-xs text-[#475569] mt-1 font-medium">
-            {displayName}
-            {handle && <span className="text-[#94A3B8] font-normal"> · @{handle}</span>}
-          </p>
+          <Link to={`/watch/${video.id}`}>
+            <h3 className="font-semibold text-[0.97rem] leading-snug line-clamp-2 text-[#0F172A] group-hover:text-[#2B8FCA] transition-colors">
+              {video.title}
+            </h3>
+          </Link>
+          {handle ? (
+            <Link
+              to={`/u/${handle}`}
+              data-testid={`video-card-creator-${video.id}`}
+              className="block text-xs text-[#475569] mt-1 font-medium hover:text-[#2B8FCA] hover:underline underline-offset-2 transition-colors truncate"
+            >
+              {displayName}
+              <span className="text-[#94A3B8] font-normal"> · @{handle}</span>
+            </Link>
+          ) : (
+            <p className="text-xs text-[#475569] mt-1 font-medium">{displayName}</p>
+          )}
           <p className="text-[11px] text-[#94A3B8] mt-0.5 flex items-center gap-1.5">
             <Eye size={11}/> {formatViews(video.views)} · {timeAgo(video.created_at)}
           </p>
         </div>
       </div>
-    </Link>
+    </div>
   );
 };
 

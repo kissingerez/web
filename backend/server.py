@@ -632,19 +632,25 @@ async def report_user(user_id: str, req: ReportRequest,
                               json_body={"reason": req.reason})
 
 
-@api_router.get("/users/{username}")
-async def get_user_profile(username: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
-    found = await _resolve_username(username, creds=creds)
-    if not found:
-        raise HTTPException(status_code=404, detail="User not found")
-    user_id = found["id"]
-    # Get full public record + user's videos
+@api_router.get("/users/by-id/{user_id}/profile")
+async def get_user_profile_by_id(user_id: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    me_record = None
+    if creds:
+        try:
+            me = await _proxy_json("GET", "/api/auth/me", creds=creds)
+            if me.get("id") == user_id:
+                me_record = me
+        except HTTPException:
+            pass
+    return await _profile_payload(user_id, creds, me_record=me_record)
+
+
+async def _profile_payload(user_id: str, creds, me_record: Optional[dict] = None) -> dict:
     user = await _proxy_json("GET", f"/api/users/{user_id}", creds=creds)
-    # upstream public record lacks `following`; merge from the resolved record (/auth/me) when available
-    if "following" not in user and "following" in found:
-        user["following"] = found["following"]
+    # upstream public record lacks `following`; merge from own /auth/me record when available
+    if "following" not in user and me_record and "following" in me_record:
+        user["following"] = me_record["following"]
     user_web = mobile_user_to_web(user)
-    # videos by user
     vids = await _proxy_json("GET", f"/api/users/{user_id}/videos", creds=creds)
     vids_web = [mobile_video_to_web(v) for v in (vids or [])]
     # follow-status: authoritative for is_following + live counts
@@ -660,6 +666,14 @@ async def get_user_profile(username: str, creds: Optional[HTTPAuthorizationCrede
         except HTTPException:
             pass
     return {"user": user_web, "is_following": is_following, "videos": vids_web}
+
+
+@api_router.get("/users/{username}")
+async def get_user_profile(username: str, creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer)):
+    found = await _resolve_username(username, creds=creds)
+    if not found:
+        raise HTTPException(status_code=404, detail="User not found")
+    return await _profile_payload(found["id"], creds, me_record=found if "following" in found else None)
 
 
 @api_router.post("/users/{username}/follow")

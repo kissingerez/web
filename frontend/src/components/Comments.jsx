@@ -120,7 +120,9 @@ const Comments = ({ videoId }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm">
-                <span className="font-semibold text-[#0F172A]">{c.user_name}</span>
+                <Link to={`/p/${c.user_id}`} data-testid={`comment-author-${c.id}`} className="font-semibold text-[#0F172A] hover:text-[#2B8FCA] hover:underline underline-offset-2">
+                  {c.user_name}
+                </Link>
                 <span className="text-xs text-[#94A3B8] ml-2">{timeAgo(c.created_at)}</span>
               </p>
               <p className="text-sm text-[#475569] mt-0.5 whitespace-pre-wrap break-words">{c.text}</p>

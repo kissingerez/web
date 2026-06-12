@@ -14,7 +14,7 @@ import {
 import { UserCheck, UserPlus, MoreHorizontal, Flag, UserX, Pencil, Crown } from "lucide-react";
 
 const Profile = () => {
-  const { username } = useParams();
+  const { username, userId } = useParams();
   const { user: me } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
@@ -26,11 +26,11 @@ const Profile = () => {
 
   const load = () => {
     setLoading(true);
-    api.get(`/users/${username}`)
+    api.get(userId ? `/users/by-id/${userId}/profile` : `/users/${username}`)
       .then((r) => setData(r.data))
       .catch((e) => {
         if (e?.response?.status === 401) {
-          navigate("/auth", { state: { from: `/u/${username}` } });
+          navigate("/auth", { state: { from: userId ? `/p/${userId}` : `/u/${username}` } });
           return;
         }
         setError(errMsg(e, "User not found"));
@@ -38,26 +38,27 @@ const Profile = () => {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [username]);
+  useEffect(load, [username, userId]);
 
   const toggleFollow = async () => {
     if (!me) return;
     setBusy(true);
     try {
+      const handle = data.user.username;
       if (data.is_following) {
-        await api.delete(`/users/${username}/follow`);
+        await api.delete(`/users/${handle}/follow`);
       } else {
-        await api.post(`/users/${username}/follow`);
+        await api.post(`/users/${handle}/follow`);
       }
       load();
     } finally { setBusy(false); }
   };
 
   const blockUser = async () => {
-    if (!window.confirm(`Block @${username}? They won't be able to interact with you, and you won't see their content.`)) return;
+    if (!window.confirm(`Block @${data.user.username}? They won't be able to interact with you, and you won't see their content.`)) return;
     try {
       await api.post(`/users/by-id/${data.user.id}/block`);
-      toast.success(`Blocked @${username}`);
+      toast.success(`Blocked @${data.user.username}`);
       navigate("/");
     } catch (e) {
       toast.error(errMsg(e, "Could not block user"));

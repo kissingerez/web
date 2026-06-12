@@ -38,6 +38,7 @@ function App() {
           <Route path="/upload" element={<Layout><Upload /></Layout>} />
           <Route path="/watch/:id" element={<Layout><Watch /></Layout>} />
           <Route path="/u/:username" element={<Layout><Profile /></Layout>} />
+          <Route path="/p/:userId" element={<Layout><Profile /></Layout>} />
           <Route path="/billing" element={<Layout><Billing /></Layout>} />
           <Route path="*" element={<Layout><Discover /></Layout>} />
         </Routes>
