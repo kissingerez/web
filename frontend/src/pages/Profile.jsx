@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserCheck, UserPlus, MoreHorizontal, Flag, UserX, Pencil } from "lucide-react";
+import { UserCheck, UserPlus, MoreHorizontal, Flag, UserX, Pencil, Crown } from "lucide-react";
 
 const Profile = () => {
   const { username } = useParams();
@@ -88,6 +88,11 @@ const Profile = () => {
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#0F172A]" data-testid="profile-displayname">
               {user.display_name || user.username}
             </h1>
+            {user.is_founder && (
+              <span data-testid="founder-badge" className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold rounded-md uppercase bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D]">
+                <Crown size={12} fill="currentColor" /> Founder
+              </span>
+            )}
             {user.is_premium && (
               <span className="brand-chip px-2.5 py-0.5 text-xs font-semibold rounded-md uppercase">Member</span>
             )}

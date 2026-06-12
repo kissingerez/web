@@ -123,9 +123,11 @@ def mobile_user_to_web(u: dict) -> dict:
         "bio": u.get("bio"),
         "created_at": u.get("created_at") or now_iso(),
         "is_premium": bool(u.get("is_subscribed")),
+        "is_founder": bool(u.get("is_founder")),
         "premium_until": u.get("current_period_end") or u.get("subscription_expires_at"),
         "followers_count": u.get("followers", 0),
         "following_count": u.get("following", 0),
+        "followers_hidden": bool(u.get("followers_hidden")),
     }
 
 
@@ -165,6 +167,7 @@ def mobile_lite_user_to_web(u: dict) -> dict:
         "avatar_url": f"{MOBILE_BACKEND_URL}/api/users/{uid}/avatar" if u.get("has_avatar") else None,
         "bio": u.get("bio"),
         "followers_count": u.get("followers", 0),
+        "is_founder": bool(u.get("is_founder")),
     }
 
 

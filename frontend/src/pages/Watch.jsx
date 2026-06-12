@@ -105,6 +105,7 @@ const Watch = () => {
   if (!video) return null;
 
   const isOwner = user?.id === video.owner_id;
+  const canDelete = isOwner || user?.is_founder;
 
   return (
     <div data-testid="watch-page" className="max-w-5xl mx-auto">
@@ -176,7 +177,7 @@ const Watch = () => {
             </div>
           </Link>
 
-          {isOwner ? (
+          {canDelete ? (
             <button
               onClick={handleDelete}
               data-testid="watch-delete-btn"

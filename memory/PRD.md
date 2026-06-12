@@ -54,6 +54,11 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 ### 2026-06-11 — No-thumbnail placeholder
 - VideoCard: removed the generic Unsplash placeholder image; videos without a thumbnail (or with broken thumbnail URLs) now show a grey box with an ImageOff icon + "No thumbnail" label (testid `no-thumbnail-{id}`).
 
+### 2026-06-12 — Founder badge + founder moderation
+- Mapped upstream `is_founder` through user serializers. Profile shows gold "👑 FOUNDER" badge (testid `founder-badge`) — Nixon/@kissingerez has it.
+- Watch page delete button now shows for video owner OR founder account (`canDelete = isOwner || user.is_founder`); deletion authorization enforced by upstream mobile API (same as mobile app).
+- Bonus fix: `followers_hidden` was missing from the user mapping (Settings toggle always initialized to false) — now mapped.
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)
