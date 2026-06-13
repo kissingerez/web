@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import api from "@/lib/api";
@@ -13,6 +13,31 @@ const MAX_GB = 25;
 const MAX_BYTES = MAX_GB * 1024 * 1024 * 1024;
 const MAX_MINUTES = 180;
 
+const fmtBytes = (b) => {
+  if (!b || b < 1) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(b) / Math.log(1024)));
+  return `${(b / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+};
+
+const fmtSpeed = (bps) => {
+  if (!bps || bps < 1) return "0 B/s";
+  const units = ["B/s", "KB/s", "MB/s", "GB/s"];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bps) / Math.log(1024)));
+  return `${(bps / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+};
+
+const fmtEta = (sec) => {
+  if (sec == null || !isFinite(sec)) return "—";
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m < 60) return `${m}m ${s.toString().padStart(2, "0")}s`;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${h}h ${mm.toString().padStart(2, "0")}m`;
+};
+
 const Upload = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -23,6 +48,12 @@ const Upload = () => {
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
   const [noAi, setNoAi] = useState(false);
+  const [speedBps, setSpeedBps] = useState(0);
+  const [etaSec, setEtaSec] = useState(null);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [totalBytes, setTotalBytes] = useState(0);
+  // rolling window for accurate speed: keep last ~2s of (t, loaded) samples
+  const samplesRef = useRef([]);
 
   const handleFile = (e) => {
     const f = e.target.files?.[0];
@@ -42,6 +73,8 @@ const Upload = () => {
     if (!title.trim()) return setError("Title is required");
     if (!noAi) return setError("Please confirm this is not AI-generated content");
     setError(null); setBusy(true); setProgress(0);
+    setSpeedBps(0); setEtaSec(null); setUploadedBytes(0); setTotalBytes(file.size);
+    samplesRef.current = [{ t: performance.now(), loaded: 0 }];
 
     try {
       // Get the direct upload target (the mobile/canonical backend). This lets
@@ -61,7 +94,25 @@ const Upload = () => {
       const res = await axios.post(uploadUrl, fd, {
         headers: { Authorization: `Bearer ${token}` },
         onUploadProgress: (e) => {
-          if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));
+          const total = e.total || file.size;
+          setTotalBytes(total);
+          setUploadedBytes(e.loaded);
+          if (total) setProgress(Math.round((e.loaded / total) * 100));
+
+          // rolling-window MB/s + ETA (last 2s of samples)
+          const now = performance.now();
+          const samples = samplesRef.current;
+          samples.push({ t: now, loaded: e.loaded });
+          while (samples.length > 2 && now - samples[0].t > 2000) samples.shift();
+          const first = samples[0];
+          const dt = (now - first.t) / 1000;
+          const dl = e.loaded - first.loaded;
+          if (dt > 0.25 && dl > 0) {
+            const bps = dl / dt;
+            setSpeedBps(bps);
+            const remaining = total - e.loaded;
+            setEtaSec(bps > 0 ? Math.max(0, Math.round(remaining / bps)) : null);
+          }
         },
         timeout: 0,
         maxContentLength: Infinity,
@@ -160,7 +211,12 @@ const Upload = () => {
             <div className="w-full h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
               <div className="h-full bg-[#89CFF0] transition-all" style={{ width: `${progress}%` }} />
             </div>
-            <p className="text-xs text-[#64748B]">Uploading… {progress}%</p>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[#64748B]">
+              <span data-testid="upload-progress-pct">Uploading… {progress}%</span>
+              <span data-testid="upload-progress-bytes">{fmtBytes(uploadedBytes)} / {fmtBytes(totalBytes)}</span>
+              <span data-testid="upload-progress-speed">{speedBps > 0 ? `${fmtSpeed(speedBps)}` : "—"}</span>
+              <span data-testid="upload-progress-eta">{etaSec != null ? `ETA ${fmtEta(etaSec)}` : ""}</span>
+            </div>
           </div>
         )}
 
