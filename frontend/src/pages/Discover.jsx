@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/context/AuthContext";
-import { PlayCircle } from "lucide-react";
+import { PlayCircle, Search as SearchIcon } from "lucide-react";
 
 const Discover = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     api.get("/videos")
@@ -17,8 +20,29 @@ const Discover = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const q = search.trim();
+    if (!q) return;
+    navigate(`/search?q=${encodeURIComponent(q)}`);
+  };
+
   return (
-    <div data-testid="discover-page" className="space-y-10">
+    <div data-testid="discover-page" className="space-y-6">
+      <form onSubmit={submitSearch} className="relative" data-testid="discover-search-form">
+        <SearchIcon size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+        <input
+          type="search"
+          inputMode="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search creators on WeClips…"
+          data-testid="discover-search-input"
+          aria-label="Search creators"
+          className="w-full h-12 pl-11 pr-4 rounded-lg border border-[#E2E8F0] bg-white text-[#0F172A] focus:outline-none focus:border-[#89CFF0] focus:ring-2 focus:ring-[#DCEEFB]"
+        />
+      </form>
+
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
           {Array.from({ length: 8 }).map((_, i) => (

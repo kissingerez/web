@@ -110,15 +110,17 @@ const MobileBottomNav = () => {
       <NavLink to="/" end data-testid="mobile-nav-discover" className={itemCls}>
         <Compass size={20}/> Discover
       </NavLink>
-      <NavLink to="/search" data-testid="mobile-nav-search" className={itemCls}>
-        <SearchIcon size={20}/> Search
-      </NavLink>
       <NavLink to="/upload" data-testid="mobile-nav-upload" className={itemCls}>
         <Upload size={20}/> Upload
       </NavLink>
       <NavLink to="/following" data-testid="mobile-nav-following" className={itemCls}>
         <Users size={20}/> Following
       </NavLink>
+      {user?.is_founder && (
+        <NavLink to="/admin" data-testid="mobile-nav-admin" className={itemCls}>
+          <Shield size={20}/> Mod
+        </NavLink>
+      )}
       {user ? (
         <NavLink to={`/u/${user.username}`} data-testid="mobile-nav-profile" className={itemCls}>
           <UserIcon size={20}/> Profile
