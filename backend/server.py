@@ -734,6 +734,16 @@ async def get_config():
     return await _proxy_json("GET", "/api/config")
 
 
+@api_router.get("/config/upload-target")
+async def upload_target():
+    """Tell the web frontend where to POST large video uploads.
+
+    Returning the mobile backend URL lets the browser upload DIRECTLY,
+    bypassing the web ingress (which caps body size and 413s on big files).
+    """
+    return {"url": f"{MOBILE_BACKEND_URL}/api/videos"}
+
+
 @api_router.get("/legal/{page}")
 async def legal_page(page: str):
     if page not in ("terms", "privacy"):

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import axios from "axios";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -42,24 +43,40 @@ const Upload = () => {
     if (!noAi) return setError("Please confirm this is not AI-generated content");
     setError(null); setBusy(true); setProgress(0);
 
-    const fd = new FormData();
-    fd.append("title", title);
-    fd.append("description", description);
-    fd.append("file", file);
-
     try {
-      const res = await api.post("/videos/upload", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // Get the direct upload target (the mobile/canonical backend). This lets
+      // the browser bypass our web ingress' body-size limit on big clips.
+      const { data: target } = await api.get("/config/upload-target");
+      const uploadUrl = target?.url;
+      if (!uploadUrl) throw new Error("Upload service unavailable");
+
+      const fd = new FormData();
+      fd.append("title", title.trim().slice(0, 120));
+      fd.append("description", (description || "").trim().slice(0, 2000));
+      fd.append("mime_type", file.type || "video/mp4");
+      fd.append("no_ai_confirmed", "true");
+      fd.append("file", file, file.name || "video.mp4");
+
+      const token = localStorage.getItem("slate_token");
+      const res = await axios.post(uploadUrl, fd, {
+        headers: { Authorization: `Bearer ${token}` },
         onUploadProgress: (e) => {
           if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));
         },
         timeout: 0,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
       });
-      navigate(`/watch/${res.data.id}`);
+      const id = res?.data?.id;
+      if (id) navigate(`/watch/${id}`);
+      else throw new Error("Upload finished but no clip id returned");
     } catch (err) {
       const detail = err?.response?.data?.detail;
-      if (err?.response?.status === 402) {
+      const status = err?.response?.status;
+      if (status === 402) {
         setError("Membership required to upload. Become a member.");
+      } else if (status === 413) {
+        setError("That file is too large for the upload service.");
       } else {
         setError(detail || err?.message || "Upload failed");
       }

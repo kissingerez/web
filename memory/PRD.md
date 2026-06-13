@@ -70,6 +70,13 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 - Video cards: creator name/@handle and avatar now link to the creator's profile (thumbnail/title still link to the watch page). Fixed JSX nesting during restructure.
 - Comment authors link to profiles via new id-based route `/p/:userId` (backend `GET /api/users/by-id/{id}/profile`, since comments only carry user_id). Refactored profile logic into shared `_profile_payload()`.
 
+### 2026-06-13 — Fix: 413 on large video uploads (e.g. 636 MB clip)
+- Root cause: web ingress in front of weclips.app rejected bodies above its limit before they reached our FastAPI proxy.
+- Fix: web Upload page now POSTs the multipart file **directly** to the canonical mobile backend `/api/videos` (CORS confirmed open for preview + production origins, echoes Origin with credentials). New endpoint `GET /api/config/upload-target` returns the URL so we don't hardcode the host on the client.
+- The legacy proxy route `POST /api/videos/upload` is left in place untouched as a fallback / for non-browser clients.
+- Mobile backend contract is unchanged (same form fields: title, description, mime_type, no_ai_confirmed, file). The native iOS app is unaffected.
+- Verified end-to-end: tiny test clip uploaded, returned `id`, then deleted via DELETE /api/videos/{id}; preflight + auth + Authorization-bearer all succeed.
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)
