@@ -87,7 +87,7 @@ const VideoCard = ({ video, locked = false }) => {
         </Link>
         <div className="min-w-0 flex-1">
           <Link to={`/watch/${video.id}`}>
-            <h3 className="font-semibold text-[0.97rem] leading-snug line-clamp-2 text-[#0F172A] group-hover:text-[#2B8FCA] transition-colors">
+            <h3 className="font-semibold text-[0.97rem] leading-snug line-clamp-2 text-black">
               {video.title}
             </h3>
           </Link>
