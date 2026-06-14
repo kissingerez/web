@@ -122,7 +122,7 @@ const Watch = () => {
 
       <div className="mt-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A]" data-testid="watch-title">{video.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black" data-testid="watch-title">{video.title}</h1>
           <p className="mt-2 text-sm text-[#64748B] flex items-center gap-3 flex-wrap">
             <span className="inline-flex items-center gap-1"><Eye size={14}/> {video.views} views</span>
             <span>·</span>
