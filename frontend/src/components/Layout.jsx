@@ -60,7 +60,7 @@ const Sidebar = ({ unread }) => {
             onClick={() => navigate("/billing")}
             className="brand-cta rounded-md px-4 py-2.5 text-sm flex items-center justify-center gap-2"
           >
-            <CheckCircle2 size={15} /> Become a Member
+            <CheckCircle2 size={15} /> Try free for 7 days
           </button>
         )}
         {user ? (

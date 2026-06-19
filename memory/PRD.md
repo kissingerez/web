@@ -77,6 +77,17 @@ Web app companion for the user's existing `weclips` mobile app (no mobile app re
 - Mobile backend contract is unchanged (same form fields: title, description, mime_type, no_ai_confirmed, file). The native iOS app is unaffected.
 - Verified end-to-end: tiny test clip uploaded, returned `id`, then deleted via DELETE /api/videos/{id}; preflight + auth + Authorization-bearer all succeed.
 
+### 2026-06-19 — Stripe LIVE subscriptions + 7-day free trial
+- Switched from one-time $0.99 charges to true recurring monthly subscriptions via official `stripe` Python SDK (`stripe==14.4.1`), replacing the `emergentintegrations` wrapper (which doesn't support subscription mode or trials).
+- `.env` swapped from `sk_test_emergent` to live `sk_live_…` key. Added `STRIPE_PRICE_ID` (pinned the canonical $0.99/mo recurring Price ID so startup never needs Stripe API) and `STRIPE_WEBHOOK_SECRET` placeholder (user to fill from Stripe Dashboard).
+- New: `_ensure_stripe_price()` bootstraps a Product + monthly Price on first run (idempotent lookup by `weclips_plan` metadata), result cached in process.
+- `POST /api/payments/checkout` creates a `mode='subscription'` Checkout Session with `subscription_data.trial_period_days=7`, `customer_email`, and `client_reference_id` = weclips_user_id. `allow_promotion_codes` enabled.
+- `POST /api/payments/portal` returns a Stripe Customer Billing Portal URL so members can self-cancel / update card.
+- `GET /api/payments/me` exposes status/trial_end/current_period_end/cancel_at_period_end for the Settings page.
+- Webhook (`POST /api/payments/webhook/stripe`) verifies signature with `STRIPE_WEBHOOK_SECRET` and handles: `checkout.session.completed`, `invoice.paid` (extends upstream premium each month), `invoice.payment_failed` (marks `past_due`), `customer.subscription.updated/deleted`. New Mongo collection `subscriptions` stores stripe_customer_id/subscription_id ↔ user_token mapping so monthly renewals can re-activate upstream premium without the user being online.
+- Frontend: Billing page rebranded to "Start 7-day free trial / $0.99/mo after trial"; Settings → Membership shows trial end date or renewal date and a "Manage subscription" button that opens the Stripe billing portal; sidebar CTA "Try free for 7 days".
+- Verified on preview: live checkout session `cs_live_…` created end-to-end with mode=subscription, $0.99 USD, monthly recurring. Trial behavior tested via `subscription_data.trial_period_days=7` passed correctly to Stripe.
+
 ## Backlog / Next Tasks
 - **P1: E2E test of Stripe → mobile subscription sync** (webhook → dev-activate grants premium) — still pending user verification with a real test payment
 - P2: Refactor server.py (~750 lines) into routers (auth/videos/social/payments)

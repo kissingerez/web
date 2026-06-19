@@ -57,6 +57,8 @@ export default function Settings() {
   const [config, setConfig] = useState(null);
   const [avatarBust, setAvatarBust] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [subInfo, setSubInfo] = useState(null);
+  const [portalBusy, setPortalBusy] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -68,6 +70,7 @@ export default function Settings() {
     setFollowersHidden(!!user.followers_hidden);
     api.get("/users/me/blocks").then((r) => setBlocks(r.data)).catch(() => {});
     api.get("/config").then((r) => setConfig(r.data)).catch(() => {});
+    api.get("/payments/me").then((r) => setSubInfo(r.data)).catch(() => {});
   }, [user, authLoading, navigate]);
 
   if (authLoading || !user) return <p className="text-[#64748B]">Loading…</p>;
@@ -169,6 +172,17 @@ export default function Settings() {
       navigate("/");
     } catch (e) {
       toast.error(errMsg(e, "Could not delete account"));
+    }
+  };
+
+  const openBillingPortal = async () => {
+    setPortalBusy(true);
+    try {
+      const res = await api.post("/payments/portal", { origin_url: window.location.origin });
+      window.location.href = res.data.url;
+    } catch (e) {
+      toast.error(errMsg(e, "Could not open billing portal"));
+      setPortalBusy(false);
     }
   };
 
@@ -278,17 +292,40 @@ export default function Settings() {
       {/* Membership */}
       <Section title="Membership" icon={CheckCircle2} testId="settings-membership-section">
         {user.is_premium ? (
-          <div>
-            <p className="text-sm text-[#0F172A]"><span className="brand-chip px-2 py-0.5 text-xs font-semibold rounded-md uppercase mr-2">Member</span> Your membership is active.</p>
-            {user.premium_until && (
-              <p className="text-xs text-[#64748B] mt-2">Current period ends {new Date(user.premium_until).toLocaleDateString()}.</p>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-[#0F172A]"><span className="brand-chip px-2 py-0.5 text-xs font-semibold rounded-md uppercase mr-2">Member</span> Your membership is active.</p>
+              {subInfo?.status === "trialing" && subInfo?.trial_end && (
+                <p className="text-xs text-[#0E9F6E] mt-2" data-testid="settings-trial-banner">
+                  Free trial — first charge on <b>{new Date(subInfo.trial_end * 1000).toLocaleDateString()}</b>.
+                </p>
+              )}
+              {subInfo?.current_period_end && subInfo.status !== "trialing" && (
+                <p className="text-xs text-[#64748B] mt-2">
+                  {subInfo.cancel_at_period_end ? "Ends" : "Renews"} on <b>{new Date(subInfo.current_period_end * 1000).toLocaleDateString()}</b>.
+                </p>
+              )}
+              {!subInfo?.current_period_end && user.premium_until && (
+                <p className="text-xs text-[#64748B] mt-2">Current period ends {new Date(user.premium_until).toLocaleDateString()}.</p>
+              )}
+            </div>
+            {subInfo?.has_subscription && (
+              <Button
+                onClick={openBillingPortal}
+                disabled={portalBusy}
+                data-testid="settings-manage-subscription-btn"
+                variant="outline"
+                className="rounded-md h-10 px-5"
+              >
+                {portalBusy ? "Opening…" : "Manage subscription"}
+              </Button>
             )}
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm text-[#475569]">You're not a member yet. Members can watch and upload clips.</p>
             <Button onClick={() => navigate("/billing")} data-testid="settings-subscribe-btn" className="brand-cta rounded-md h-10 px-5 font-bold">
-              Become a Member · $0.99/mo
+              Start 7-day free trial
             </Button>
           </div>
         )}

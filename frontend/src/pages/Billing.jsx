@@ -33,21 +33,22 @@ const Billing = () => {
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#0F172A]">Become a Member</h1>
         <p className="mt-3 text-[#475569] text-base max-w-md mx-auto">
-          One simple membership. Ad-free always. Cancel anytime.
+          Start with a <b className="text-[#0F172A]">7-day free trial</b>. Cancel anytime — no charge if you cancel before day 7.
         </p>
       </div>
 
       <div className="mt-10 border border-[#E2E8F0] bg-white rounded-lg p-8 fade-up">
         <div className="flex items-baseline gap-2 text-[#0F172A]">
           <span className="text-6xl font-extrabold tracking-tight">$0.99</span>
-          <span className="text-[#64748B]">/ month</span>
+          <span className="text-[#64748B]">/ month after trial</span>
         </div>
+        <p className="mt-2 text-xs text-[#0E9F6E] font-semibold uppercase tracking-wider">7 days free · then $0.99/mo · cancel anytime</p>
         <ul className="mt-6 space-y-3 text-[#475569]">
           <li className="flex items-start gap-3"><Check className="text-[#0E9F6E] mt-0.5" size={18}/> Watch every clip — ad-free</li>
-          <li className="flex items-start gap-3"><Check className="text-[#0E9F6E] mt-0.5" size={18}/> Upload your own videos (up to 2 GB)</li>
+          <li className="flex items-start gap-3"><Check className="text-[#0E9F6E] mt-0.5" size={18}/> Upload your own videos (up to 25 GB)</li>
           <li className="flex items-start gap-3"><Check className="text-[#0E9F6E] mt-0.5" size={18}/> Follow your favorite creators</li>
           <li className="flex items-start gap-3"><Check className="text-[#0E9F6E] mt-0.5" size={18}/> No AI-generated junk — human clips only</li>
-          <li className="flex items-start gap-3"><Check className="text-[#0E9F6E] mt-0.5" size={18}/> Cancel anytime</li>
+          <li className="flex items-start gap-3"><Check className="text-[#0E9F6E] mt-0.5" size={18}/> Cancel anytime from Settings</li>
         </ul>
 
         {user?.is_premium ? (
@@ -63,7 +64,7 @@ const Billing = () => {
             data-testid="billing-subscribe-btn"
             className="mt-8 w-full h-12 brand-cta rounded-md font-bold text-base"
           >
-            {busy ? "Redirecting…" : "Become a Member · $0.99"}
+            {busy ? "Redirecting…" : "Start 7-day free trial"}
           </Button>
         )}
 
