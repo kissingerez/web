@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { errMsg, timeAgo } from "@/lib/format";
@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import Comments from "@/components/Comments";
 import ReportDialog from "@/components/ReportDialog";
 import { Button } from "@/components/ui/button";
-import { Lock, CheckCircle2 as Crown, Trash2, Eye, Heart, Flag, Share2 } from "lucide-react";
+import { Lock, CheckCircle2 as Crown, Trash2, Eye, Heart, Flag, Share2, Twitter, Link2, MessageCircle } from "lucide-react";
 
 const Watch = () => {
   const { id } = useParams();
@@ -21,6 +21,23 @@ const Watch = () => {
   const [likes, setLikes] = useState(0);
   const [shares, setShares] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareWrapRef = useRef(null);
+
+  // Close share menu on outside click / Esc
+  useEffect(() => {
+    if (!shareOpen) return;
+    const onDown = (e) => {
+      if (shareWrapRef.current && !shareWrapRef.current.contains(e.target)) setShareOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setShareOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [shareOpen]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -65,20 +82,59 @@ const Watch = () => {
     }
   };
 
-  const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/api/share/${id}`;
+  const trackShare = () => {
     api.post(`/videos/${id}/share`)
       .then((r) => { if (r.data?.shares != null) setShares(r.data.shares); })
       .catch(() => {});
+  };
+
+  const shareUrl = video ? `${window.location.origin}/api/share/${id}` : "";
+  const shareCaption = video ? `Watch "${video.title}" on @weclips — ad-free, Christian, and calm.` : "";
+
+  const openNativeShare = async () => {
+    setShareOpen(false);
+    trackShare();
     try {
       if (navigator.share) {
-        await navigator.share({ title: video.title, text: `Watch “${video.title}” on WeClips`, url: shareUrl });
+        await navigator.share({ title: video.title, text: shareCaption, url: shareUrl });
       } else {
         await navigator.clipboard.writeText(shareUrl);
         toast.success("Link copied! Send it to a friend.");
       }
+    } catch { /* user closed the share sheet — no-op */ }
+  };
+
+  const shareToX = () => {
+    setShareOpen(false);
+    trackShare();
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareCaption)}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const shareToWhatsApp = () => {
+    setShareOpen(false);
+    trackShare();
+    const url = `https://wa.me/?text=${encodeURIComponent(`${shareCaption} ${shareUrl}`)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const shareToSMS = () => {
+    setShareOpen(false);
+    trackShare();
+    // iOS uses sms:&body=, Android uses sms:?body=
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const sep = isIOS ? "&" : "?";
+    window.location.href = `sms:${sep}body=${encodeURIComponent(`${shareCaption} ${shareUrl}`)}`;
+  };
+
+  const copyLink = async () => {
+    setShareOpen(false);
+    trackShare();
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied!");
     } catch {
-      // user closed the share sheet — no-op
+      toast.error("Could not copy link");
     }
   };
 
@@ -151,13 +207,46 @@ const Watch = () => {
             <Heart size={16} fill={liked ? "currentColor" : "none"} /> {likes}
           </button>
 
-          <button
-            onClick={handleShare}
-            data-testid="watch-share-btn"
-            className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-md border border-[#E2E8F0] text-sm font-semibold text-[#475569] hover:border-[#89CFF0] hover:text-[#0B5C8C] transition-colors"
-          >
-            <Share2 size={16} /> Share
-          </button>
+          <div className="relative" ref={shareWrapRef}>
+            <button
+              onClick={() => setShareOpen(!shareOpen)}
+              data-testid="watch-share-btn"
+              aria-haspopup="menu"
+              aria-expanded={shareOpen}
+              className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-md border border-[#E2E8F0] text-sm font-semibold text-[#475569] hover:border-[#89CFF0] hover:text-[#0B5C8C] transition-colors"
+            >
+              <Share2 size={16} /> Share
+            </button>
+
+            {shareOpen && (
+              <div
+                role="menu"
+                data-testid="watch-share-menu"
+                className="absolute right-0 mt-2 z-30 w-56 bg-white border border-[#E2E8F0] rounded-md shadow-lg overflow-hidden"
+              >
+                <button onClick={shareToX} data-testid="share-to-x" role="menuitem"
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-[#0F172A] hover:bg-[#F1F5F9]">
+                  <Twitter size={16} className="text-[#1DA1F2]"/> Share to X
+                </button>
+                <button onClick={shareToWhatsApp} data-testid="share-to-whatsapp" role="menuitem"
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-[#0F172A] hover:bg-[#F1F5F9]">
+                  <MessageCircle size={16} className="text-[#25D366]"/> Share to WhatsApp
+                </button>
+                <button onClick={shareToSMS} data-testid="share-to-sms" role="menuitem"
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-[#0F172A] hover:bg-[#F1F5F9]">
+                  <MessageCircle size={16} className="text-[#0B5C8C]"/> iMessage / SMS
+                </button>
+                <button onClick={openNativeShare} data-testid="share-native" role="menuitem"
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-[#0F172A] hover:bg-[#F1F5F9] border-t border-[#F1F5F9]">
+                  <Share2 size={16} className="text-[#64748B]"/> More…
+                </button>
+                <button onClick={copyLink} data-testid="share-copy-link" role="menuitem"
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-[#0F172A] hover:bg-[#F1F5F9]">
+                  <Link2 size={16} className="text-[#64748B]"/> Copy link
+                </button>
+              </div>
+            )}
+          </div>
 
           <Link to={`/u/${video.owner_username}`} className="flex items-center gap-3 group" data-testid="watch-creator-link">
             {video.owner_avatar ? (
