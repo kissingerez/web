@@ -25,6 +25,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 
+from emails import send_welcome_trial_email
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
@@ -1107,6 +1109,7 @@ async def stripe_webhook(request: Request):
                 # Find our internal txn to recover user_token
                 txn = await db.payment_transactions.find_one({"session_id": obj.get("id")})
                 token = txn.get("user_token") if txn else None
+                already_welcomed = bool(txn and txn.get("welcome_email_sent_at"))
                 await db.subscriptions.update_one(
                     {"stripe_subscription_id": sub_id},
                     {"$set": {
@@ -1132,6 +1135,30 @@ async def stripe_webhook(request: Request):
                         "paid_at": now_iso(),
                     }},
                 )
+                # Send the trial-welcome email exactly once per session
+                if not already_welcomed:
+                    to_email = obj.get("customer_details", {}).get("email") or (txn or {}).get("email") or obj.get("customer_email")
+                    first_name = ""
+                    cd_name = obj.get("customer_details", {}).get("name") or ""
+                    if cd_name:
+                        first_name = cd_name.split(" ")[0]
+                    elif token:
+                        try:
+                            me = await _proxy_json("GET", "/api/auth/me",
+                                                    creds=HTTPAuthorizationCredentials(scheme="Bearer", credentials=token))
+                            first_name = (me.get("display_name") or me.get("username") or "").split(" ")[0]
+                        except HTTPException:
+                            pass
+                    trial_end_date = None
+                    if sub.trial_end:
+                        from datetime import datetime as _dt
+                        trial_end_date = _dt.utcfromtimestamp(sub.trial_end).strftime("%B %d, %Y")
+                    sent = await send_welcome_trial_email(to_email, first_name, trial_end_date) if to_email else False
+                    if sent:
+                        await db.payment_transactions.update_one(
+                            {"session_id": obj.get("id")},
+                            {"$set": {"welcome_email_sent_at": now_iso()}},
+                        )
             except stripe.error.StripeError:
                 logger.exception("Failed handling checkout.session.completed")
 
