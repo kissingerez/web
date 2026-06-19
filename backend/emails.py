@@ -27,12 +27,8 @@ def _from_email() -> Email:
     return Email(addr, name)
 
 
-def _public_logo_url() -> str:
-    return os.environ.get("PUBLIC_LOGO_URL", "https://weclips.app/api/static/weclips-logo.png")
-
-
-def _public_icon_url() -> str:
-    return os.environ.get("PUBLIC_ICON_URL", "https://weclips.app/api/static/weclips-icon.png")
+def _public_banner_url() -> str:
+    return os.environ.get("PUBLIC_BANNER_URL", "https://weclips.app/api/static/weclips-banner.png")
 
 
 def _welcome_html(first_name: str, trial_end_date: Optional[str]) -> str:
@@ -42,8 +38,7 @@ def _welcome_html(first_name: str, trial_end_date: Optional[str]) -> str:
         if trial_end_date else
         "Your first $0.99 charge will be after your 7-day free trial."
     )
-    logo = _public_logo_url()
-    icon = _public_icon_url()
+    banner = _public_banner_url()
     return f"""\
 <!DOCTYPE html>
 <html>
@@ -53,18 +48,8 @@ def _welcome_html(first_name: str, trial_end_date: Optional[str]) -> str:
         <td align="center">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background:#FFFFFF;border-radius:12px;border:1px solid #E2E8F0;overflow:hidden;">
             <tr>
-              <td style="padding:32px 36px 20px 36px;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td valign="middle" style="padding-right:14px;">
-                      <img src="{icon}" alt="" width="56" height="56" style="display:block;border:0;outline:none;text-decoration:none;width:56px;height:56px;border-radius:12px;">
-                    </td>
-                    <td valign="middle">
-                      <img src="{logo}" alt="WeClips" width="140" height="42" style="display:block;border:0;outline:none;text-decoration:none;height:42px;width:140px;">
-                      <p style="margin:4px 0 0 0;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#94A3B8;font-weight:600;">Ad-free · No AI · No chaos</p>
-                    </td>
-                  </tr>
-                </table>
+              <td style="padding:8px 0 0 0;text-align:center;">
+                <img src="{banner}" alt="WeClips — Ad-free, Christian, and calm" width="480" style="display:block;border:0;outline:none;text-decoration:none;width:100%;max-width:480px;height:auto;margin:0 auto;">
               </td>
             </tr>
             <tr>
