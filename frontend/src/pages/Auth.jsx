@@ -37,12 +37,13 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-10 bg-white" data-testid="auth-page">
       <div className="w-full max-w-md">
-        <Link to="/" className="brand-mark text-5xl flex items-center justify-center gap-2 mb-2 text-[#89CFF0]">
-          WeClips
+        <Link to="/" className="block mb-3" data-testid="auth-brand-link">
+          <img
+            src="/weclips-banner-1280.png"
+            alt="WeClips — Ad-free, Christian, and calm"
+            className="mx-auto w-full max-w-[320px] h-auto"
+          />
         </Link>
-        <p className="text-center text-[#475569] text-sm mb-8" data-testid="auth-tagline">
-          Ad-free Christian-friendly video, $1/month. No AI. No chaos.
-        </p>
 
         <div className="border border-[#E2E8F0] bg-white rounded-lg p-8 fade-up">
           <h1 className="text-2xl font-extrabold tracking-tight text-[#0F172A]">

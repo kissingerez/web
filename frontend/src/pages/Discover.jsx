@@ -65,9 +65,13 @@ const Discover = () => {
       )}
 
       {!loading && !error && videos.length === 0 && (
-        <div className="text-center py-20 border border-dashed border-[#CBD5E1] rounded-lg" data-testid="empty-discover">
-          <PlayCircle className="mx-auto text-[#CBD5E1]" size={48} />
-          <p className="mt-4 text-[#0F172A] font-semibold">No clips yet</p>
+        <div className="text-center py-16 border border-dashed border-[#CBD5E1] rounded-lg" data-testid="empty-discover">
+          <img
+            src="/weclips-banner-1280.png"
+            alt="WeClips"
+            className="mx-auto w-full max-w-[320px] h-auto"
+          />
+          <p className="mt-6 text-[#0F172A] font-semibold">No clips yet</p>
           <p className="text-sm text-[#64748B] mt-1">Be the first — become a member and share your first clip.</p>
         </div>
       )}
