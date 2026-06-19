@@ -142,15 +142,15 @@ const Watch = () => {
 
   if (paywall) {
     return (
-      <div data-testid="watch-paywall" className="max-w-2xl mx-auto py-12 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-[#DCEEFB] text-[#0B5C8C] mb-4">
-          <Lock size={28} />
+      <div data-testid="watch-paywall" className="max-w-md mx-auto py-16 text-center">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#DCEEFB] text-[#0B5C8C] mb-4">
+          <Lock size={22} />
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">Members only</h1>
-        <p className="mt-2 text-[#475569]">WeClips is an ad-free, member-supported video network. Become a Member for $0.99/month to watch any clip.</p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-[#0F172A]">Members only</h1>
+        <p className="mt-2 text-sm text-[#475569]">Start your 7-day free trial to watch this clip.</p>
         <Link to="/billing">
-          <Button data-testid="watch-paywall-subscribe-btn" className="mt-6 brand-cta px-6 h-11 rounded-md font-bold">
-            <Crown size={16} className="mr-2"/> Become a Member · $0.99
+          <Button data-testid="watch-paywall-subscribe-btn" className="mt-5 brand-cta px-5 h-11 rounded-md font-bold">
+            Start free trial
           </Button>
         </Link>
       </div>

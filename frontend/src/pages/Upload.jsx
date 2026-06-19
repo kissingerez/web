@@ -150,15 +150,15 @@ const Upload = () => {
 
   if (!user.is_premium) {
     return (
-      <div data-testid="upload-page-paywall" className="max-w-xl mx-auto py-12 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-md bg-[#DCEEFB] text-[#0B5C8C] mb-4">
-          <Lock size={28} />
+      <div data-testid="upload-page-paywall" className="max-w-md mx-auto py-16 text-center">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#DCEEFB] text-[#0B5C8C] mb-4">
+          <Lock size={22} />
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">Become a Member to upload</h1>
-        <p className="mt-2 text-[#475569]">WeClips uploads are part of the $0.99/month membership.</p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-[#0F172A]">Members only</h1>
+        <p className="mt-2 text-sm text-[#475569]">Start your 7-day free trial to upload.</p>
         <Link to="/billing">
-          <Button data-testid="paywall-subscribe-btn" className="mt-6 brand-cta px-6 h-11 rounded-md font-bold">
-            <Crown size={16} className="mr-2"/> Become a Member · $0.99
+          <Button data-testid="paywall-subscribe-btn" className="mt-5 brand-cta px-5 h-11 rounded-md font-bold">
+            Start free trial
           </Button>
         </Link>
       </div>

@@ -68,7 +68,7 @@ const Comments = ({ videoId }) => {
           <MessageCircle size={18}/> Comments
         </h2>
         <p className="text-sm text-[#64748B]">
-          Comments are for members. <Link to="/billing" className="text-[#2B8FCA] underline">Become a Member · $0.99/mo</Link>
+          Comments are for members. <Link to="/billing" className="text-[#2B8FCA] underline">Start free trial</Link>
         </p>
       </section>
     );

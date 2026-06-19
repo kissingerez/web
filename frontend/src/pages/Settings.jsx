@@ -325,7 +325,7 @@ export default function Settings() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm text-[#475569]">You're not a member yet. Members can watch and upload clips.</p>
             <Button onClick={() => navigate("/billing")} data-testid="settings-subscribe-btn" className="brand-cta rounded-md h-10 px-5 font-bold">
-              Start 7-day free trial
+              Start free trial
             </Button>
           </div>
         )}
