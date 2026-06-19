@@ -78,7 +78,12 @@ const Billing = () => {
           My goal for WeClips is to provide a more healthy way to stream your favorite videos — without the heavy toll modern streaming takes on you.
         </p>
         <div className="mt-5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#DCEEFB] border border-[#89CFF0] text-[#0A1929] flex items-center justify-center text-sm font-bold">N</div>
+          <img
+            src="/founder-nixon.jpg"
+            alt="Nixon — founder of WeClips"
+            className="w-10 h-10 rounded-full object-cover border border-[#E2E8F0]"
+            data-testid="founder-avatar"
+          />
           <div>
             <p className="text-sm font-semibold text-[#0F172A] leading-tight">Nixon</p>
             <p className="text-xs text-[#94A3B8] leading-tight">Founder, WeClips</p>
