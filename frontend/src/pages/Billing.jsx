@@ -68,6 +68,23 @@ const Billing = () => {
       <p className="mt-4 text-xs text-[#94A3B8] text-center flex items-center justify-center gap-1.5">
         <Lock size={11}/> Secure payment via Stripe
       </p>
+
+      <section className="mt-10 border border-[#E2E8F0] bg-white rounded-lg p-6" data-testid="founder-note">
+        <p className="text-xs uppercase tracking-wider text-[#94A3B8] font-semibold">Why I made WeClips</p>
+        <p className="mt-3 text-sm leading-relaxed text-[#475569]">
+          I, like many people, missed the days of old when online streaming was ad-free and either educational or entertainment. Nowadays online content is unwatchable due to the spamming of ads, sponsorships, pop-ups, and videos that try to manipulate, fear-monger, or destroy people&apos;s minds with excess visual and sound effects.
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-[#475569]">
+          My goal for WeClips is to provide a more healthy way to stream your favorite videos — without the heavy toll modern streaming takes on you.
+        </p>
+        <div className="mt-5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-[#DCEEFB] border border-[#89CFF0] text-[#0A1929] flex items-center justify-center text-sm font-bold">N</div>
+          <div>
+            <p className="text-sm font-semibold text-[#0F172A] leading-tight">Nixon</p>
+            <p className="text-xs text-[#94A3B8] leading-tight">Founder, WeClips</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
