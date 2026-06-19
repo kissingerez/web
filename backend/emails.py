@@ -27,6 +27,10 @@ def _from_email() -> Email:
     return Email(addr, name)
 
 
+def _public_logo_url() -> str:
+    return os.environ.get("PUBLIC_LOGO_URL", "https://weclips.app/api/static/weclips-logo.png")
+
+
 def _welcome_html(first_name: str, trial_end_date: Optional[str]) -> str:
     name = (first_name or "there").strip() or "there"
     trial_line = (
@@ -34,6 +38,7 @@ def _welcome_html(first_name: str, trial_end_date: Optional[str]) -> str:
         if trial_end_date else
         "Your first $0.99 charge will be after your 7-day free trial."
     )
+    logo = _public_logo_url()
     return f"""\
 <!DOCTYPE html>
 <html>
@@ -44,7 +49,7 @@ def _welcome_html(first_name: str, trial_end_date: Optional[str]) -> str:
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background:#FFFFFF;border-radius:12px;border:1px solid #E2E8F0;overflow:hidden;">
             <tr>
               <td style="padding:32px 36px 8px 36px;text-align:left;">
-                <span style="font-family:'Comic Sans MS','Comic Sans',cursive;font-weight:700;font-size:28px;color:#89CFF0;letter-spacing:-0.01em;">WeClips</span>
+                <img src="{logo}" alt="WeClips" width="160" height="48" style="display:block;border:0;outline:none;text-decoration:none;height:48px;width:160px;">
               </td>
             </tr>
             <tr>

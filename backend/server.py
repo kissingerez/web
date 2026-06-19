@@ -238,6 +238,12 @@ class SuspendRequest(BaseModel):
 app = FastAPI(title="WeClips Web (proxy)")
 api_router = APIRouter(prefix="/api")
 
+# Static assets (logo PNGs etc.) — served at /api/static/...
+from fastapi.staticfiles import StaticFiles
+_static_dir = ROOT_DIR / "static"
+_static_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/api/static", StaticFiles(directory=str(_static_dir)), name="static")
+
 
 @api_router.get("/")
 async def root():
